@@ -249,7 +249,7 @@ with tabs[2]:
 with tabs[3]:
     st.header("Materials (editable)")
     mat_df = st.session_state.materials_df.copy()
-    edited_mat = st.experimental_data_editor(mat_df, num_rows="dynamic")
+    edited_mat = st.data_editor(mat_df, num_rows="dynamic")
     st.session_state.materials_df = edited_mat
     m1,m2 = st.columns(2)
     with m1:
