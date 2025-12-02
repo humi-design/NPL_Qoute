@@ -264,7 +264,8 @@ with tabs[3]:
 with tabs[4]:
     st.header("Vendor DB")
     vdf = st.session_state.vendor_db.copy()
-    edited_v = st.experimental_data_editor(vdf, num_rows="dynamic")
+    edited_v = st.data_editor(vdf, num_rows="dynamic")
+    
     st.session_state.vendor_db = edited_v
     if st.button("Save Vendor DB"):
         st.session_state.vendor_db.to_csv(VENDOR_CSV, index=False); st.success("Vendor DB saved")
