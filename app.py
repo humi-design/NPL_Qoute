@@ -1,6 +1,6 @@
 # app.py
-# Fastener Costing App — Final with GPT fallback + validation + batch confirmation + trusted source import
-# Requires: streamlit, pandas, numpy, openpyxl, reportlab, openai
+# Fastener Costing App — Patched for new OpenAI client + "Database first then GPT" fallback (Option A)
+# Requires: streamlit>=1.28.0, pandas, numpy, openpyxl, reportlab, openai
 # Install: pip install streamlit pandas numpy openpyxl reportlab openai
 
 import streamlit as st
@@ -12,13 +12,15 @@ from reportlab.pdfgen import canvas
 import os, re, json, datetime
 from pathlib import Path
 
-# Optional OpenAI usage
+# Optional OpenAI library (we will import client only if available)
 try:
     import openai
+    from openai import OpenAI
 except Exception:
     openai = None
+    OpenAI = None
 
-st.set_page_config(layout="wide", page_title="Fastener Costing App (Validated + Batch Add + Trusted Source)")
+st.set_page_config(layout="wide", page_title="Fastener Costing App (DB-first + GPT fallback)")
 
 # ---------- Persistence ----------
 DATA_DIR = Path("fastener_data")
@@ -41,7 +43,7 @@ def volume_by_stock(stock_type, dim, total_length, inner_dim=None, thickness=Non
     if stock_type == "Square Bar":
         return area_square(dim) * total_length
     if stock_type == "Tube":
-        if not inner_dim:
+        if inner_dim is None or inner_dim == 0:
             return area_round(dim) * total_length
         return (area_round(dim) - area_round(inner_dim)) * total_length
     if stock_type == "Sheet/Cold Formed":
@@ -114,9 +116,21 @@ if "cost_history" not in st.session_state:
 if "din_db" not in st.session_state:
     st.session_state.din_db = load_or_init_csv(DIN_DB_CSV, DIN_DEFAULTS.columns.tolist(), default_df=DIN_DEFAULTS)
 
-# ---------- GPT helpers ----------
+# ---------- safe column detector ----------
+def find_column(df, candidates):
+    for c in candidates:
+        if c in df.columns:
+            return c
+    # case-insensitive search
+    cols_lower = {col.lower():col for col in df.columns}
+    for c in candidates:
+        if c.lower() in cols_lower:
+            return cols_lower[c.lower()]
+    return None
+
+# ---------- parse / GPT helpers ----------
 def parse_item_text(item_text):
-    s = item_text.strip()
+    s = str(item_text).strip()
     m = re.search(r'((DIN|ISO)\s*\d{2,5})', s, re.IGNORECASE)
     standard = m.group(1).upper().replace(" ","") if m else None
     m2 = re.search(r'(M\d{1,3})(?:x(\d{1,4}))?', s, re.IGNORECASE)
@@ -141,13 +155,34 @@ Example:
 """
 
 def fetch_dimensions_via_gpt(api_key, standard, size, model="gpt-4o-mini"):
-    if openai is None:
-        raise RuntimeError("openai not installed")
-    openai.api_key = api_key
+    """
+    Uses the new OpenAI client (OpenAI) to request JSON. Returns dict or None.
+    """
+    if OpenAI is None:
+        raise RuntimeError("openai library not installed")
+    client = OpenAI(api_key=api_key)
     prompt = build_gpt_prompt(standard, size)
     try:
-        resp = openai.ChatCompletion.create(model=model, messages=[{"role":"system","content":"You are a precise dimensional assistant. Reply ONLY with JSON."},{"role":"user","content":prompt}], temperature=0.0, max_tokens=400)
-        text = resp.choices[0].message['content'].strip()
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role":"system","content":"You are a precise dimensional assistant. Reply ONLY with JSON."},
+                {"role":"user","content":prompt}
+            ],
+            temperature=0.0,
+            max_tokens=400
+        )
+        # newer client returns choices list; extract safely
+        # text extraction supports both .message.content and legacy structure
+        text = None
+        try:
+            text = resp.choices[0].message.content.strip()
+        except Exception:
+            # fallback if different shape
+            text = str(resp.choices[0].message).strip()
+        if not text:
+            st.error("GPT returned empty response.")
+            return None
         json_text = re.sub(r"^```json|```$", "", text, flags=re.IGNORECASE).strip()
         match = re.search(r'(\{.*\})', json_text, re.DOTALL)
         if match: json_text = match.group(1)
@@ -163,14 +198,6 @@ def fetch_dimensions_via_gpt(api_key, standard, size, model="gpt-4o-mini"):
 
 # ---------- validation routine ----------
 def validate_dimensions_row(row):
-    """
-    row: dict containing at least 'd' (nominal), maybe dk,k,s
-    Returns list of warning strings (empty if ok)
-    Rules (heuristic):
-      - dk (head dia) typical range: 1.3*d to 2.0*d for bolts (hex head)
-      - s (across flats) typical ~ 1.5*d to 2.0*d depending
-      - k (head height) typical ~ 0.5*d to 1.0*d
-    """
     warnings = []
     try:
         d = float(row.get("d")) if row.get("d") not in (None,"") else None
@@ -179,7 +206,6 @@ def validate_dimensions_row(row):
     if d is None:
         warnings.append("Missing nominal d (thread diameter) — cannot validate")
         return warnings
-    # check dk
     dk = row.get("dk")
     if dk not in (None,"") and pd.notna(dk):
         dk = float(dk)
@@ -187,13 +213,11 @@ def validate_dimensions_row(row):
             warnings.append(f"dk too small: {dk} mm (expected >= {1.3*d:.2f})")
         if dk > 2.5*d:
             warnings.append(f"dk unusually large: {dk} mm (expected <= {2.5*d:.2f})")
-    # check s
     s = row.get("s")
     if s not in (None,"") and pd.notna(s):
         s = float(s)
         if s < 1.3*d:
             warnings.append(f"across flats (s) too small: {s} mm (expected >= {1.3*d:.2f})")
-    # check k
     k = row.get("k")
     if k not in (None,"") and pd.notna(k):
         k = float(k)
@@ -206,9 +230,27 @@ def validate_dimensions_row(row):
 # ---------- Sidebar & settings ----------
 st.sidebar.header("Settings & OpenAI")
 api_key = st.sidebar.text_input("OpenAI API key (optional)", type="password")
-use_gpt_fallback = st.sidebar.checkbox("Enable GPT fallback (Option B)", value=True if api_key else False)
-if api_key and openai is None:
-    st.sidebar.warning("openai not installed; GPT fallback won't work until openai is installed.")
+use_gpt_fallback = st.sidebar.checkbox("Enable GPT fallback (Option A: DB first)", value=True if api_key else False)
+
+# test API key button
+if st.sidebar.button("Test OpenAI API Key"):
+    if not api_key:
+        st.sidebar.error("No API key provided.")
+    elif OpenAI is None:
+        st.sidebar.error("openai library not installed in environment.")
+    else:
+        try:
+            client = OpenAI(api_key=api_key)
+            # quick chat ping
+            resp = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role":"system","content":"You are a heartbeat responder. Reply 'pong'."},{"role":"user","content":"ping"}], temperature=0.0, max_tokens=10)
+            text = None
+            try:
+                text = resp.choices[0].message.content.strip()
+            except Exception:
+                text = str(resp)
+            st.sidebar.success(f"API OK — sample response: {text}")
+        except Exception as e:
+            st.sidebar.error(f"API test failed: {e}")
 
 st.sidebar.subheader("Machine Rates (₹/hr)")
 if "rates" not in st.session_state:
@@ -265,7 +307,6 @@ with tabs[4]:
     st.header("Vendor DB")
     vdf = st.session_state.vendor_db.copy()
     edited_v = st.data_editor(vdf, num_rows="dynamic")
-    
     st.session_state.vendor_db = edited_v
     if st.button("Save Vendor DB"):
         st.session_state.vendor_db.to_csv(VENDOR_CSV, index=False); st.success("Vendor DB saved")
@@ -294,7 +335,6 @@ with tabs[6]:
             st.dataframe(trusted_df.head())
             merge = st.button("Merge into local DIN DB (preview shows conflicts)")
             if merge:
-                # simple merge: append any rows not already in DB (by Standard+Size)
                 local = st.session_state.din_db.copy()
                 added = 0
                 for _, r in trusted_df.iterrows():
@@ -335,28 +375,48 @@ with tabs[0]:
 
         if df_items is not None:
             st.write("Preview (editable):")
-            df_items = st.experimental_data_editor(df_items, num_rows="dynamic")
+            # use stable editor
+            df_items = st.data_editor(df_items, num_rows="dynamic")
             # process each row: parse, try local DB, else GPT fallback (collect proposals)
             proposals = []    # list of dicts with fetched dims and validation warnings
             unmatched = []
             matched_rows = []
             for idx, row in df_items.iterrows():
                 item_text = str(row.get("Item","")).strip()
+                if item_text == "":
+                    continue
                 qty = int(row.get("Qty",1)) if not pd.isna(row.get("Qty",1)) else 1
                 material = row.get("Material", None)
                 override_d = row.get("OverrideDiameter", None) if "OverrideDiameter" in df_items.columns else None
                 override_l = row.get("OverrideLength", None) if "OverrideLength" in df_items.columns else None
                 standard, size, length = parse_item_text(item_text)
                 if override_l and not pd.isna(override_l): length = float(override_l)
-                # find in DIN DB
+                # DB-first lookup (Option A)
                 found = None
                 if standard and size:
                     db = st.session_state.din_db
-                    match = db[(db["Standard"].str.upper()==standard.upper()) & (db["Size"].str.upper()==size.upper())]
-                    if not match.empty:
-                        found = match.iloc[0].to_dict()
+                    # use robust column names
+                    std_col = find_column(db, ["Standard","DIN","Std"])
+                    size_col = find_column(db, ["Size","ThreadSize","S"])
+                    if std_col and size_col:
+                        match = db[(db[std_col].astype(str).str.upper()==standard.upper()) & (db[size_col].astype(str).str.upper()==size.upper())]
+                        if not match.empty:
+                            # map keys flexibly
+                            row0 = match.iloc[0].to_dict()
+                            # try to read numeric fields using common names
+                            def get_field(dct, names):
+                                for nm in names:
+                                    if nm in dct and pd.notna(dct[nm]):
+                                        return dct[nm]
+                                return None
+                            d_val = get_field(row0, ["d","D","nominal","d1"])
+                            dk = get_field(row0, ["dk","DK","head_diameter"])
+                            k = get_field(row0, ["k","K","head_height"])
+                            s = get_field(row0, ["s","S","across_flats"])
+                            pitch = get_field(row0, ["pitch","P"])
+                            head_type = row0.get("HeadType") if "HeadType" in row0 else row0.get("Head_Type", "")
+                            found = {"d":d_val, "dk":dk, "k":k, "s":s, "pitch":pitch, "HeadType":head_type}
                 if found:
-                    # use dims
                     d_final = float(override_d) if (override_d and not pd.isna(override_d)) else float(found.get("d") or 0)
                     dk = float(found.get("dk") or 0)
                     k = float(found.get("k") or 0)
@@ -366,10 +426,9 @@ with tabs[0]:
                 else:
                     # missing — attempt GPT fallback if enabled
                     if use_gpt_fallback and api_key:
-                        st.info(f"Requesting GPT dims for {standard} {size}")
+                        st.info(f"Requesting GPT dims for {standard or 'UnknownStd'} {size or ''}")
                         data = fetch_dimensions_via_gpt(api_key, standard, size)
                         if data:
-                            # allow manual corrections and validate
                             warnings = validate_dimensions_row(data)
                             proposals.append({"Item":item_text,"Standard":standard,"Size":size,"Qty":qty,"Material":material,"d":data.get("d"),"dk":data.get("dk"),"k":data.get("k"),"s":data.get("s"),"pitch":data.get("pitch"),"notes":data.get("notes"),"warnings":"; ".join(warnings)})
                         else:
@@ -385,23 +444,23 @@ with tabs[0]:
             if proposals:
                 st.subheader("GPT Proposals (review & bulk-add)")
                 prop_df = pd.DataFrame(proposals)
-                # show warnings column highlighted
                 st.dataframe(prop_df)
-                st.markdown("Select proposals to add to local DB (you can edit values before adding).")
-                # editable table for proposals
-                editable_props = st.experimental_data_editor(prop_df, num_rows="dynamic")
-                # confirm and add selected rows
-                # add a checkbox column to mark which to add
-                editable_props["Add?"] = editable_props.get("Add?", True)
+                st.markdown("Edit proposals below (if needed), then select rows to add to local DB.")
+                editable_props = st.data_editor(prop_df, num_rows="dynamic")
+                # ensure Add? column
+                if "Add?" not in editable_props.columns:
+                    editable_props["Add?"] = True
                 if st.button("Add selected proposals to local DIN DB"):
                     added = 0
                     local = st.session_state.din_db.copy()
+                    std_col = "Standard"; size_col = "Size"
                     for _, prow in editable_props.iterrows():
-                        if prow.get("Add?") in (True, "True", 1):
+                        if prow.get("Add?", True) in (True, "True", 1, "1"):
                             std = str(prow.get("Standard","")).strip()
                             sz = str(prow.get("Size","")).strip()
-                            # check duplicate
-                            exists = local[(local["Standard"].str.upper()==std.upper()) & (local["Size"].str.upper()==sz.upper())]
+                            if std=="" or sz=="":
+                                continue
+                            exists = local[(local["Standard"].astype(str).str.upper()==std.upper()) & (local["Size"].astype(str).str.upper()==sz.upper())]
                             if exists.empty:
                                 newrow = {"Standard":std,"Size":sz,"HeadType":prow.get("HeadType",""), "d":prow.get("d"), "dk":prow.get("dk"), "k":prow.get("k"), "s":prow.get("s"), "pitch":prow.get("pitch"), "Notes":prow.get("notes","")}
                                 local = local.append(newrow, ignore_index=True)
@@ -419,19 +478,29 @@ with tabs[1]:
     st.header("Single Item Calculator (full costing, editable)")
     st.markdown("Select a standard from local DB or enter custom dims manually.")
 
-    din_options = st.session_state.din_db
-    stds = sorted(din_options["Standard"].unique().tolist())
+    din_options = st.session_state.din_db.copy()
+    # robust detection of standard and size columns
+    std_col = find_column(din_options, ["Standard","DIN","Std"])
+    size_col = find_column(din_options, ["Size","ThreadSize","S"])
+    stds = sorted(din_options[std_col].dropna().astype(str).unique().tolist()) if std_col else []
     chosen = st.selectbox("Choose standard or Custom", ["Custom"] + stds)
-    if chosen != "Custom":
-        sizes = sorted(din_options[din_options["Standard"]==chosen]["Size"].tolist())
+    if chosen != "Custom" and std_col and size_col:
+        sizes = sorted(din_options[din_options[std_col].astype(str)==chosen][size_col].dropna().astype(str).unique().tolist())
         chosen_size = st.selectbox("Size", sizes)
-        row = din_options[(din_options["Standard"]==chosen)&(din_options["Size"]==chosen_size)].iloc[0]
-        pre_d = float(row.get("d") or float(chosen_size.replace("M","")))
-        pre_dk = float(row.get("dk") or 0.0)
-        pre_k = float(row.get("k") or 0.0)
-        pre_s = float(row.get("s") or 0.0)
+        row = din_options[(din_options[std_col].astype(str)==chosen) & (din_options[size_col].astype(str)==chosen_size)].iloc[0]
+        # flexible numeric extraction
+        def g(r, names):
+            for nm in names:
+                if nm in r and pd.notna(r[nm]):
+                    return r[nm]
+            return None
+        pre_d = float(g(row, ["d","D","nominal"]) or float(str(chosen_size).replace("M","") if isinstance(chosen_size,str) and chosen_size.upper().startswith("M") else 30.0))
+        pre_dk = float(g(row, ["dk","DK","head_diameter"]) or 0.0)
+        pre_k = float(g(row, ["k","K","head_height"]) or 0.0)
+        pre_s = float(g(row, ["s","S","across_flats"]) or 0.0)
     else:
         pre_d = 30.0; pre_dk=0.0; pre_k=0.0; pre_s=0.0
+        chosen_size = "M30"
 
     col1,col2 = st.columns([2,1])
     with col1:
@@ -484,7 +553,7 @@ with tabs[1]:
     traub_cost = (rates["Traub"] * traub_cycle)/3600.0
     milling_cost = (rates["VMC Milling"] * milling_cycle)/3600.0
     threading_cost = (rates["Threading"] * threading_cycle)/3600.0
-    punching_cost = (rates["Punching / Press"] * punching_cycle)/3600.0
+    punching_cost = (rates["Punching"] * punching_cycle)/3600.0
     tooling_per_piece = tooling_cost / run_qty
     other_direct = heat_treat + plating + inspection + packaging + labour_add
 
@@ -513,4 +582,4 @@ with st.sidebar:
         out = bytes_to_excel_bytes({"Materials":st.session_state.materials_df, "DIN_DB":st.session_state.din_db, "VendorDB":st.session_state.vendor_db, "History":st.session_state.cost_history})
         st.download_button("Download All Data", out, file_name="fastener_data_all.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-st.write("App ready — new features: validation of dims, batch proposal confirmation, trusted source merge. Use GPT fallback cautiously and always review before adding to DB.")
+st.write("App ready — DB-first fallback implemented. Use GPT fallback cautiously and always review before adding to DB.")
