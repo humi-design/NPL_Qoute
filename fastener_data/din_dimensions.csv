@@ -1,0 +1,5 @@
+DIN,Size,Diameter(mm),Length(mm),HeadDia(mm)
+DIN 933,M8x20,8,20,13
+DIN 934,M8,8,,13
+DIN 912,M10x30,10,30,16
+DIN 6912,M12x40,12,40,18
