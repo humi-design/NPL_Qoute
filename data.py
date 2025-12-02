@@ -1,17 +1,16 @@
-# data.py
 import pandas as pd
 
+# Default Materials
 DEFAULT_MATERIALS = pd.DataFrame([
-    ["A2 Stainless (304)", 8000.0, 220.0],
-    ["A4 Stainless (316)", 8020.0, 300.0],
-    ["Steel (C45 / EN8)", 7850.0, 80.0],
-    ["Brass (CW614N)", 8530.0, 450.0],
-    ["Aluminium 6061", 2700.0, 300.0],
-    ["Copper", 8960.0, 700.0],
-], columns=["Material","Density (kg/m3)","Default Price (₹/kg)"])
+    {"Material":"A2 Stainless Steel", "Density (kg/m3)":8000, "Default Price (₹/kg)":200},
+    {"Material":"Brass", "Density (kg/m3)":8500, "Default Price (₹/kg)":600},
+    {"Material":"Carbon Steel", "Density (kg/m3)":7850, "Default Price (₹/kg)":150}
+])
 
+# Default DIN/ISO DB
 DIN_DEFAULTS = pd.DataFrame([
-    ["DIN 933","M8","hex_bolt",8,13,5.3,13,1.25,"Example M8 DIN933"],
-    ["DIN 933","M10","hex_bolt",10,16,6.4,17,1.5,"Example M10 DIN933"],
-    ["DIN 935","M30","castle_nut",30,48,12,46,2.5,"Example M30 DIN935"],
-], columns=["Standard","Size","HeadType","d","dk","k","s","pitch","Notes"])
+    {"DIN":"DIN 933", "Size":"M8x20", "Diameter(mm)":8, "Length(mm)":20, "HeadDia(mm)":13},
+    {"DIN":"DIN 934", "Size":"M8", "Diameter(mm)":8, "Length(mm)":None, "HeadDia(mm)":13},
+    {"DIN":"DIN 912", "Size":"M10x30", "Diameter(mm)":10, "Length(mm)":30, "HeadDia(mm)":16},
+    {"DIN":"DIN 6912", "Size":"M12x40", "Diameter(mm)":12, "Length(mm)":40, "HeadDia(mm)":18},
+])
