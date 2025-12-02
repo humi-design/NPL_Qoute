@@ -274,7 +274,7 @@ with tabs[4]:
 with tabs[5]:
     st.header("Costing History")
     hdf = st.session_state.cost_history.copy()
-    edited_h = st.experimental_data_editor(hdf, num_rows="dynamic")
+    edited_h = st.data_editor(hdf, num_rows="dynamic")
     st.session_state.cost_history = edited_h
     if st.button("Save History"):
         st.session_state.cost_history.to_csv(HISTORY_CSV, index=False); st.success("History saved")
