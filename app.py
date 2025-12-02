@@ -66,8 +66,15 @@ with tabs[1]:
 # -------------------- Bulk / DIN Batch Costing --------------------
 with tabs[0]:
     st.header("Bulk / DIN Batch Costing")
-    st.subheader("Bulk Input by DIN / Article Number")
     bulk_file = st.file_uploader("Upload CSV/XLSX with 'DIN', optionally 'Size' & 'Qty'", type=["csv","xlsx"], key="bulk_file")
+    openai_key = st.text_input("OpenAI API Key (for GPT lookup)", type="password", key="openai_key")
+    stock_type_bulk = st.selectbox("Stock Type (Bulk)", ["Round Bar","Hex Bar","Square Bar","Tube","Sheet/Cold Formed"], key="stock_bulk")
+    material_bulk = st.selectbox("Material (Bulk)", st.session_state.materials_df["Material"].tolist(), key="mat_bulk")
+    mrow_bulk = st.session_state.materials_df[st.session_state.materials_df["Material"]==material_bulk].iloc[0]
+    density_bulk = st.number_input("Density (kg/m3) (Bulk)", value=float(mrow_bulk["Density (kg/m3)"].item()), min_value=float(0.1), step=float(0.1), format="%.2f", key="density_bulk")
+    mat_price_bulk = st.number_input("Material price (₹/kg) (Bulk)", value=float(mrow_bulk["Default Price (₹/kg)"].item()), min_value=float(0.01), step=float(0.01), format="%.2f", key="price_bulk")
+    auto_parting_bulk = st.checkbox("Auto parting for bulk", True, key="auto_part_bulk")
+
     if bulk_file:
         if bulk_file.name.lower().endswith(".csv"):
             bulk_df = pd.read_csv(bulk_file)
@@ -79,93 +86,96 @@ with tabs[0]:
         else:
             if 'Qty' not in bulk_df.columns:
                 bulk_df['Qty'] = int(100)
-            st.data_editor(bulk_df, num_rows="dynamic", key="bulk_editor")
 
-    openai_key = st.text_input("OpenAI API Key (for GPT lookup)", type="password", key="openai_key")
-    stock_type_bulk = st.selectbox("Stock Type (Bulk)", ["Round Bar","Hex Bar","Square Bar","Tube","Sheet/Cold Formed"], key="stock_bulk")
-    material_bulk = st.selectbox("Material (Bulk)", st.session_state.materials_df["Material"].tolist(), key="mat_bulk")
-    mrow_bulk = st.session_state.materials_df[st.session_state.materials_df["Material"]==material_bulk].iloc[0]
-    density_bulk = st.number_input("Density (kg/m3) (Bulk)", value=float(mrow_bulk["Density (kg/m3)"].item()), min_value=float(0.1), step=float(0.1), format="%.2f", key="density_bulk")
-    mat_price_bulk = st.number_input("Material price (₹/kg) (Bulk)", value=float(mrow_bulk["Default Price (₹/kg)"].item()), min_value=float(0.01), step=float(0.01), format="%.2f", key="price_bulk")
-    auto_parting_bulk = st.checkbox("Auto parting for bulk", True, key="auto_part_bulk")
-# -------------------- Bulk / DIN Batch Costing Continued --------------------
-if bulk_file:
-    if 'Qty' not in bulk_df.columns:
-        bulk_df['Qty'] = int(100)
-    # Auto-fill dimensions if OpenAI API key provided
-    if openai_key:
-        for idx, row in bulk_df.iterrows():
-            if pd.isna(row.get('Diameter(mm)', None)):
-                diameter, head_dia = query_gpt_for_din(row['DIN'], row.get('Size', ''), stock_type_bulk, openai_key)
-                bulk_df.at[idx, 'Diameter(mm)'] = diameter
-                bulk_df.at[idx, 'HeadDia(mm)'] = head_dia
+            # Auto-fill dimensions if OpenAI API key provided
+            if openai_key:
+                for idx, row in bulk_df.iterrows():
+                    if pd.isna(row.get('Diameter(mm)', None)):
+                        diameter_val, head_dia_val = query_gpt_for_din(row['DIN'], row.get('Size', ''), stock_type_bulk, openai_key)
+                        bulk_df.at[idx, 'Diameter(mm)'] = diameter_val
+                        bulk_df.at[idx, 'HeadDia(mm)'] = head_dia_val
 
-    # Auto parting
-    if auto_parting_bulk:
-        bulk_df['Parting(mm)'] = bulk_df['Length(mm)'].apply(compute_auto_parting)
-    else:
-        if 'Parting(mm)' not in bulk_df.columns:
-            bulk_df['Parting(mm)'] = float(5.0)
+            # Auto parting
+            if auto_parting_bulk:
+                bulk_df['Parting(mm)'] = bulk_df['Length(mm)'].apply(compute_auto_parting)
+            else:
+                if 'Parting(mm)' not in bulk_df.columns:
+                    bulk_df['Parting(mm)'] = float(5.0)
 
-    # Compute costing per item
-    bulk_df['Material_kg'] = bulk_df.apply(
-        lambda x: volume_by_stock(stock_type_bulk, float(x['Diameter(mm)']), float(x['Length(mm)'])+float(x['Parting(mm)'])) * float(density_bulk)/1e9,
-        axis=1
-    )
-    bulk_df['MaterialCost'] = bulk_df['Material_kg'] * float(mat_price_bulk)
-    bulk_df['TraubCost'] = bulk_df['MaterialCost'] * 0.1
-    bulk_df['MillingCost'] = bulk_df['MaterialCost'] * 0.05
-    bulk_df['ThreadingCost'] = bulk_df['MaterialCost'] * 0.05
-    bulk_df['PunchingCost'] = bulk_df['MaterialCost'] * 0.02
-    bulk_df['ToolingCost'] = bulk_df['MaterialCost'] * 0.01
-    bulk_df['Subtotal_INR'] = (bulk_df['MaterialCost'] + bulk_df['TraubCost'] + bulk_df['MillingCost'] +
-                               bulk_df['ThreadingCost'] + bulk_df['PunchingCost'] + bulk_df['ToolingCost'])
-    bulk_df['TotalUnitPrice_INR'] = bulk_df['Subtotal_INR'] * (1 + default_scrap/100)*(1 + default_overhead/100)*(1 + default_profit/100)
-    bulk_df['TotalBatch_INR'] = bulk_df['TotalUnitPrice_INR'] * bulk_df['Qty']
+            # Compute costing per item
+            bulk_df['Material_kg'] = bulk_df.apply(
+                lambda x: volume_by_stock(stock_type_bulk, float(x['Diameter(mm)']), float(x['Length(mm)'])+float(x['Parting(mm)'])) * float(density_bulk)/1e9,
+                axis=1
+            )
+            bulk_df['MaterialCost'] = bulk_df['Material_kg'] * float(mat_price_bulk)
+            bulk_df['TraubCost'] = bulk_df['MaterialCost'] * 0.1
+            bulk_df['MillingCost'] = bulk_df['MaterialCost'] * 0.05
+            bulk_df['ThreadingCost'] = bulk_df['MaterialCost'] * 0.05
+            bulk_df['PunchingCost'] = bulk_df['MaterialCost'] * 0.02
+            bulk_df['ToolingCost'] = bulk_df['MaterialCost'] * 0.01
+            bulk_df['Subtotal_INR'] = (bulk_df['MaterialCost'] + bulk_df['TraubCost'] + bulk_df['MillingCost'] +
+                                       bulk_df['ThreadingCost'] + bulk_df['PunchingCost'] + bulk_df['ToolingCost'])
+            bulk_df['TotalUnitPrice_INR'] = bulk_df['Subtotal_INR'] * (1 + default_scrap/100)*(1 + default_overhead/100)*(1 + default_profit/100)
+            bulk_df['TotalBatch_INR'] = bulk_df['TotalUnitPrice_INR'] * bulk_df['Qty']
 
-    st.subheader("Bulk Costing Preview")
-    st.data_editor(bulk_df, num_rows="dynamic", key="bulk_calc_editor")
+            if 'TargetPrice' not in bulk_df.columns:
+                bulk_df['TargetPrice'] = None
 
-    # Empty column for target price input
-    if 'TargetPrice' not in bulk_df.columns:
-        bulk_df['TargetPrice'] = None
+            st.subheader("Bulk Costing Preview")
+            st.data_editor(bulk_df, num_rows="dynamic", key="bulk_calc_editor")
 
-    st.subheader("Enter Target Prices (Optional)")
-    for idx in bulk_df.index:
-        bulk_df.at[idx, 'TargetPrice'] = st.number_input(
-            f"Target Price for {bulk_df.at[idx,'DIN']} (INR)", 
-            value=float(bulk_df.at[idx,'TargetPrice']) if bulk_df.at[idx,'TargetPrice'] else float(0),
-            min_value=float(0),
-            step=float(0.01),
-            format="%.2f",
-            key=f"target_{idx}"
-        )
+            # Editable Target Price
+            st.subheader("Enter Target Prices (Optional)")
+            for idx in bulk_df.index:
+                bulk_df.at[idx, 'TargetPrice'] = st.number_input(
+                    f"Target Price for {bulk_df.at[idx,'DIN']} (INR)", 
+                    value=float(bulk_df.at[idx,'TargetPrice']) if bulk_df.at[idx,'TargetPrice'] else float(0),
+                    min_value=float(0),
+                    step=float(0.01),
+                    format="%.2f",
+                    key=f"target_{idx}"
+                )
 
-    # Currency conversion
-    bulk_df['TotalUnitPrice_USD'] = bulk_df['TotalUnitPrice_INR'] / float(usd_rate)
-    bulk_df['TotalUnitPrice_EUR'] = bulk_df['TotalUnitPrice_INR'] / float(eur_rate)
+            # Currency conversion
+            bulk_df['TotalUnitPrice_USD'] = bulk_df['TotalUnitPrice_INR'] / float(usd_rate)
+            bulk_df['TotalUnitPrice_EUR'] = bulk_df['TotalUnitPrice_INR'] / float(eur_rate)
 
-    # Save to cost history
-    if st.button("Save Bulk Costing to History", key="save_bulk_history"):
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        for idx, row in bulk_df.iterrows():
-            st.session_state.cost_history = st.session_state.cost_history.append({
-                "Timestamp": timestamp,
-                "PartDesc": row['DIN'],
-                "Qty": row['Qty'],
-                "Material": material_bulk,
-                "Diameter(mm)": row['Diameter(mm)'],
-                "Length(mm)": row['Length(mm)'],
-                "Parting(mm)": row['Parting(mm)'],
-                "UnitPrice_INR": row['TotalUnitPrice_INR'],
-                "Total_INR": row['TotalBatch_INR'],
-                "TargetPrice": row['TargetPrice'],
-                "Notes": ""
-            }, ignore_index=True)
-        st.session_state.cost_history.to_csv(HISTORY_CSV, index=False)
-        st.success("Saved to history!")
+            # Save to history
+            if st.button("Save Bulk Costing to History", key="save_bulk_history"):
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                for idx, row in bulk_df.iterrows():
+                    st.session_state.cost_history = st.session_state.cost_history.append({
+                        "Timestamp": timestamp,
+                        "PartDesc": row['DIN'],
+                        "Qty": row['Qty'],
+                        "Material": material_bulk,
+                        "Diameter(mm)": row['Diameter(mm)'],
+                        "Length(mm)": row['Length(mm)'],
+                        "Parting(mm)": row['Parting(mm)'],
+                        "UnitPrice_INR": row['TotalUnitPrice_INR'],
+                        "Total_INR": row['TotalBatch_INR'],
+                        "TargetPrice": row['TargetPrice'],
+                        "Notes": ""
+                    }, ignore_index=True)
+                st.session_state.cost_history.to_csv(HISTORY_CSV, index=False)
+                st.success("Saved to history!")
 
-    # PDF Export
-    if st.button("Generate Quotation PDF", key="pdf_export"):
-        pdf_bytes = pdf_quote_bytes(bulk_df.to_dict(orient="records"))
-        st.download_button("Download Quotation PDF", pdf_bytes, file_name="quotation.pdf", mime="application/pdf")
+            # PDF Export
+            if st.button("Generate Quotation PDF", key="pdf_export"):
+                pdf_bytes = pdf_quote_bytes(bulk_df.to_dict(orient="records"))
+                st.download_button("Download Quotation PDF", pdf_bytes, file_name="quotation.pdf", mime="application/pdf")
+
+# -------------------- DIN DB Tab --------------------
+with tabs[2]:
+    st.header("DIN / ISO DB")
+    st.data_editor(st.session_state.din_db, num_rows="dynamic", key="din_db_editor")
+
+# -------------------- Materials Tab --------------------
+with tabs[3]:
+    st.header("Materials Database")
+    st.data_editor(st.session_state.materials_df, num_rows="dynamic", key="materials_editor")
+
+# -------------------- History Tab --------------------
+with tabs[4]:
+    st.header("Costing History")
+    st.data_editor(st.session_state.cost_history, num_rows="dynamic", key="history_editor")
