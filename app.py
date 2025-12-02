@@ -420,7 +420,7 @@ with tabs[1]:
     st.markdown("Select a standard from local DB or enter custom dims manually.")
 
     din_options = st.session_state.din_db
-    stds = sorted(din_options["Standard"].unique().tolist())
+    stds = sorted(din_options["DIN/ISO"].unique().tolist())
     chosen = st.selectbox("Choose standard or Custom", ["Custom"] + stds)
     if chosen != "Custom":
         sizes = sorted(din_options[din_options["Standard"]==chosen]["Size"].tolist())
