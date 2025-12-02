@@ -1,6 +1,5 @@
 # app.py
 # Full End-to-End Fastener Costing App
-# Features: DIN lookup, bulk & single item, operations costing, editable, PDF export, batch totals
 # Streamlit >=1.28 required
 
 import streamlit as st
@@ -80,6 +79,27 @@ def pdf_quote_bytes(cost_summary):
     c.showPage(); c.save(); buf.seek(0)
     return buf.getvalue()
 
+def query_gpt_for_din(standard, size, head_type, key):
+    if not openai or key.strip()=="":
+        return None
+    openai.api_key = key.strip()
+    prompt = f"""
+    Provide the standard dimensions for {standard} {size} {head_type} fastener.
+    Return as CSV: d,dk,k,s,pitch. Only numbers, no units or extra text.
+    """
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-5-mini",
+            messages=[{"role":"user","content":prompt}],
+            temperature=0
+        )
+        text = response['choices'][0]['message']['content']
+        nums = [float(x.strip()) for x in text.replace("\n",",").split(",") if x.strip()]
+        if len(nums)==5: return nums
+    except Exception as e:
+        st.warning(f"GPT lookup failed: {e}")
+    return None
+
 # -------------------- Default Data --------------------
 DEFAULT_MATERIALS = pd.DataFrame([
     ["A2 Stainless (304)", 8000.0, 220.0],
@@ -113,6 +133,7 @@ eur_rate = st.sidebar.number_input("1 EUR = ? INR", value=90.0, format="%.2f")
 default_scrap = st.sidebar.number_input("Scrap (%)", value=2.0, format="%.2f")
 default_overhead = st.sidebar.number_input("Overhead (%)", value=10.0, format="%.2f")
 default_profit = st.sidebar.number_input("Profit (%)", value=8.0, format="%.2f")
+
 # Machining rates
 operation_rates = {}
 for op in ["Traub","Milling","Threading","Punching","Tooling"]:
@@ -238,3 +259,72 @@ with tabs[1]:
         }
         pdf_bytes = pdf_quote_bytes(summary)
         st.download_button("Download Quotation PDF", data=pdf_bytes, file_name="quotation.pdf", mime="application/pdf")
+
+# -------------------- Bulk / DIN Batch Costing --------------------
+with tabs[0]:
+    st.header("Bulk / DIN Batch Costing")
+    din_df = st.session_state.din_db.copy()
+    edited = st.data_editor(din_df, num_rows="dynamic")
+    st.session_state.din_db = edited
+
+    openai_key = st.text_input("OpenAI API Key (for GPT lookup)", type="password")
+    
+    stock_type_bulk = st.selectbox("Stock Type", ["Round Bar","Hex Bar","Square Bar","Tube","Sheet/Cold Formed"])
+    material_bulk = st.selectbox("Material", st.session_state.materials_df["Material"].tolist())
+    mrow_bulk = st.session_state.materials_df[st.session_state.materials_df["Material"]==material_bulk].iloc[0]
+    density_bulk = st.number_input("Density (kg/m3)", value=mrow_bulk["Density (kg/m3)"], format="%.2f")
+    mat_price_bulk = st.number_input("Material price (₹/kg)", value=mrow_bulk["Default Price (₹/kg)"], format="%.2f")
+    qty_bulk = st.number_input("Quantity per item", value=100, min_value=1, step=1)
+    
+    auto_parting_bulk = st.checkbox("Auto parting", True)
+    
+    if st.button("Auto-fill missing dimensions & calculate costs"):
+        results = []
+        updated_rows = 0
+        for idx, row in st.session_state.din_db.iterrows():
+            # GPT auto-fill missing dimensions
+            missing = any(pd.isna(row[c]) for c in ["d","dk","k","s","pitch"])
+            if missing and openai_key.strip()!="":
+                dims = query_gpt_for_din(row["Standard"], row["Size"], row["HeadType"], openai_key)
+                if dims:
+                    st.session_state.din_db.at[idx,"d"] = dims[0]
+                    st.session_state.din_db.at[idx,"dk"] = dims[1]
+                    st.session_state.din_db.at[idx,"k"] = dims[2]
+                    st.session_state.din_db.at[idx,"s"] = dims[3]
+                    st.session_state.din_db.at[idx,"pitch"] = dims[4]
+                    updated_rows += 1
+
+            # Parting
+            L = row.get("Length",50.0)
+            parting = compute_auto_parting(L) if auto_parting_bulk else row.get("Parting",5.0)
+            
+            # Material cost
+            diameter = row.get("d", 10.0)
+            length = row.get("Length",50.0)
+            mass_kg = volume_by_stock(stock_type_bulk, diameter, length+parting)*density_bulk/1e9
+            material_cost = mass_kg * mat_price_bulk
+            
+            # Default operations cost (editable)
+            traub_cost = material_cost*0.1
+            milling_cost = material_cost*0.05
+            threading_cost = material_cost*0.05
+            punching_cost = material_cost*0.02
+            tooling_cost = material_cost*0.01
+            
+            subtotal = material_cost + traub_cost + milling_cost + threading_cost + punching_cost + tooling_cost
+            subtotal *= (1 + default_scrap/100)*(1 + default_overhead/100)*(1 + default_profit/100)
+            
+            results.append({
+                "PartDesc": f"{row['Standard']} {row['Size']}",
+                "Material": material_bulk,
+                "Diameter(mm)": diameter,
+                "Length(mm)": length,
+                "Parting(mm)": parting,
+                "MaterialCost_INR": round(material_cost,2),
+                "Traub": round(traub_cost,2),
+                "Milling": round(milling_cost,2),
+                "Threading": round(threading_cost,2),
+                "Punching": round(punching_cost,2),
+                "Tooling": round(tooling_cost,2),
+                "UnitPrice_INR": round(subtotal,2),
+                "
