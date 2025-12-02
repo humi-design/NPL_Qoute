@@ -25,11 +25,11 @@ if "cost_history" not in st.session_state:
 
 # -------------------- Sidebar --------------------
 st.sidebar.header("Rates & Settings")
-usd_rate = st.sidebar.number_input("1 USD = ? INR", value=83.0, format="%.2f")
-eur_rate = st.sidebar.number_input("1 EUR = ? INR", value=90.0, format="%.2f")
-default_scrap = st.sidebar.number_input("Scrap (%)", value=2.0, format="%.2f")
-default_overhead = st.sidebar.number_input("Overhead (%)", value=10.0, format="%.2f")
-default_profit = st.sidebar.number_input("Profit (%)", value=8.0, format="%.2f")
+usd_rate = st.sidebar.number_input("1 USD = ? INR", value=83.0, min_value=0.01, step=0.01, format="%.2f")
+eur_rate = st.sidebar.number_input("1 EUR = ? INR", value=90.0, min_value=0.01, step=0.01, format="%.2f")
+default_scrap = st.sidebar.number_input("Scrap (%)", value=2.0, min_value=0.0, step=0.1, format="%.2f")
+default_overhead = st.sidebar.number_input("Overhead (%)", value=10.0, min_value=0.0, step=0.1, format="%.2f")
+default_profit = st.sidebar.number_input("Profit (%)", value=8.0, min_value=0.0, step=0.1, format="%.2f")
 
 # -------------------- Tabs --------------------
 tabs = st.tabs(["Bulk / DIN","Single Calculator","DIN DB","Materials","History"])
@@ -45,8 +45,8 @@ with tabs[1]:
     qty = st.number_input("Quantity", value=100, min_value=1, step=1, format="%d")
     material = st.selectbox("Material", st.session_state.materials_df["Material"].tolist())
     mrow = st.session_state.materials_df[st.session_state.materials_df["Material"]==material].iloc[0]
-    density = st.number_input("Density (kg/m3)", value=mrow["Density (kg/m3)"], min_value=0.1, step=0.1, format="%.2f")
-    mat_price = st.number_input("Material price (₹/kg)", value=mrow["Default Price (₹/kg)"], min_value=0.01, step=0.01, format="%.2f")
+    density = st.number_input("Density (kg/m3)", value=float(mrow["Density (kg/m3)"]), min_value=0.1, step=0.1, format="%.2f")
+    mat_price = st.number_input("Material price (₹/kg)", value=float(mrow["Default Price (₹/kg)"]), min_value=0.01, step=0.01, format="%.2f")
 
     mass_kg = volume_by_stock(stock_type, diameter, length+parting)*density/1e9
     material_cost = mass_kg*mat_price
@@ -86,8 +86,8 @@ with tabs[0]:
     stock_type_bulk = st.selectbox("Stock Type", ["Round Bar","Hex Bar","Square Bar","Tube","Sheet/Cold Formed"])
     material_bulk = st.selectbox("Material", st.session_state.materials_df["Material"].tolist())
     mrow_bulk = st.session_state.materials_df[st.session_state.materials_df["Material"]==material_bulk].iloc[0]
-    density_bulk = st.number_input("Density (kg/m3)", value=mrow_bulk["Density (kg/m3)"], min_value=0.1, step=0.1, format="%.2f")
-    mat_price_bulk = st.number_input("Material price (₹/kg)", value=mrow_bulk["Default Price (₹/kg)"], min_value=0.01, step=0.01, format="%.2f")
+    density_bulk = st.number_input("Density (kg/m3)", value=float(mrow_bulk["Density (kg/m3)"]), min_value=0.1, step=0.1, format="%.2f")
+    mat_price_bulk = st.number_input("Material price (₹/kg)", value=float(mrow_bulk["Default Price (₹/kg)"]), min_value=0.01, step=0.01, format="%.2f")
     auto_parting_bulk = st.checkbox("Auto parting for bulk", True)
 
     if st.button("Process Bulk DIN List"):
