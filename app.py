@@ -233,7 +233,7 @@ with tabs[2]:
     st.header("Local DIN / ISO Dimension DB")
     st.markdown("Edit entries, validate, save. This DB is used to auto-fill dimensions for parsed items.")
     din_df = st.session_state.din_db.copy()
-    edited = st.experimental_data_editor(din_df, num_rows="dynamic")
+    edited = st.data_editor(din_df, num_rows="dynamic")
     st.session_state.din_db = edited
     c1,c2 = st.columns(2)
     with c1:
