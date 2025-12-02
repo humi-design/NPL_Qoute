@@ -1,22 +1,16 @@
 # app.py
-# Fastener Costing App — Streamlit Cloud compatible using st.data_editor
-# Requires: streamlit>=1.28.0, pandas, numpy, openpyxl, reportlab, openai
 import streamlit as st
 import pandas as pd
 import numpy as np
 from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-import os, re, json, datetime
 from pathlib import Path
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+import datetime
 
-try:
-    import openai
-except Exception:
-    openai = None
+st.set_page_config(layout="wide", page_title="Fastener Costing App")
 
-st.set_page_config(layout="wide", page_title="Fastener Costing App (Cloud Stable)")
-
+# ---------- Paths ----------
 DATA_DIR = Path("fastener_data")
 DATA_DIR.mkdir(exist_ok=True)
 MATERIALS_CSV = DATA_DIR / "materials.csv"
@@ -24,7 +18,7 @@ VENDOR_CSV = DATA_DIR / "vendor_db.csv"
 HISTORY_CSV = DATA_DIR / "cost_history.csv"
 DIN_DB_CSV = DATA_DIR / "din_dimensions.csv"
 
-# ---------- Utilities ----------
+# ---------- Helper Functions ----------
 def area_round(d): return np.pi*(d/2)**2
 def area_hex(af): return (3*np.sqrt(3)/2)*(af/2)**2
 def area_square(s): return s**2
@@ -41,50 +35,25 @@ def volume_by_stock(stock_type, dim, total_length, inner_dim=None, thickness=Non
         return dim*total_length
     return area_round(dim)*total_length
 
-def bytes_to_excel_bytes(dfs):
-    out = BytesIO()
-    with pd.ExcelWriter(out, engine="openpyxl") as writer:
-        for n, df in dfs.items():
-            df.to_excel(writer, sheet_name=n[:31], index=False)
-    return out.getvalue()
-
-def pdf_quote_bytes(costing_summary):
-    buf = BytesIO()
-    c = canvas.Canvas(buf, pagesize=A4)
-    w,h = A4
-    margin = 40
-    y = h - margin
-    def write(txt, shift=14, bold=False):
-        nonlocal y
-        if y < margin+60:
-            c.showPage(); y=h-margin
-        c.setFont("Helvetica-Bold" if bold else "Helvetica", 11)
-        c.drawString(margin, y, txt)
-        y -= shift
-    write("Quotation / Costing Summary",18,True)
-    write(f"Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    write("")
-    for k,v in costing_summary.items(): write(f"{k}: {v}")
-    c.showPage(); c.save(); buf.seek(0)
-    return buf.getvalue()
-
-# ---------- CSV helpers ----------
 def load_or_init_csv(path, cols, default_df=None):
     if path.exists():
-        try: return pd.read_csv(path)
-        except: pass
+        try:
+            return pd.read_csv(path)
+        except:
+            pass
     if default_df is not None:
         default_df.to_csv(path,index=False)
         return default_df.copy()
     return pd.DataFrame(columns=cols)
 
+# ---------- Default Data ----------
 DEFAULT_MATERIALS = pd.DataFrame([
-    ["A2 Stainless (304)", 8000, 220],
-    ["A4 Stainless (316)", 8020, 300],
-    ["Steel (C45 / EN8)", 7850, 80],
-    ["Brass (CW614N)", 8530, 450],
-    ["Aluminium 6061", 2700, 300],
-    ["Copper", 8960, 700],
+    ["A2 Stainless (304)", 8000.0, 220.0],
+    ["A4 Stainless (316)", 8020.0, 300.0],
+    ["Steel (C45 / EN8)", 7850.0, 80.0],
+    ["Brass (CW614N)", 8530.0, 450.0],
+    ["Aluminium 6061", 2700.0, 300.0],
+    ["Copper", 8960.0, 700.0],
 ], columns=["Material","Density (kg/m3)","Default Price (₹/kg)"])
 
 DIN_DEFAULTS = pd.DataFrame([
@@ -93,7 +62,7 @@ DIN_DEFAULTS = pd.DataFrame([
     ["DIN 935","M30","castle_nut",30,48,12,46,2.5,"Example M30 DIN935"],
 ], columns=["Standard","Size","HeadType","d","dk","k","s","pitch","Notes"])
 
-# ---------- session_state ----------
+# ---------- Session State ----------
 for key, val in {
     "materials_df": (MATERIALS_CSV, DEFAULT_MATERIALS),
     "vendor_db": (VENDOR_CSV, pd.DataFrame(columns=["Vendor","Item/Spec","Unit Price (₹)","Lead Time (days)","Notes"])),
@@ -103,19 +72,15 @@ for key, val in {
     if key not in st.session_state:
         st.session_state[key] = load_or_init_csv(val[0], val[1].columns.tolist(), default_df=val[1])
 
-# ---------- Streamlit App ----------
+# ---------- Sidebar ----------
 st.sidebar.header("Settings & Rates")
-api_key = st.sidebar.text_input("OpenAI API key", type="password")
-use_gpt_fallback = st.sidebar.checkbox("Enable GPT fallback", value=True if api_key else False)
-rates = {"Traub":700,"CNC Turning":650,"VMC Milling":600,"Drilling":500,"Threading":450,"Punching":400}
-for k in rates.keys():
-    rates[k] = st.sidebar.number_input(f"{k} (₹/hr)", value=rates[k], format="%.2f")
-usd_rate = st.sidebar.number_input("1 USD = ? INR", 83.0)
-eur_rate = st.sidebar.number_input("1 EUR = ? INR", 90.0)
-default_scrap = st.sidebar.number_input("Scrap (%)",2.0)
-default_overhead = st.sidebar.number_input("Overhead (%)",10.0)
-default_profit = st.sidebar.number_input("Profit (%)",8.0)
+usd_rate = st.sidebar.number_input("1 USD = ? INR", value=83.0, format="%.2f")
+eur_rate = st.sidebar.number_input("1 EUR = ? INR", value=90.0, format="%.2f")
+default_scrap = st.sidebar.number_input("Scrap (%)", value=2.0, format="%.2f")
+default_overhead = st.sidebar.number_input("Overhead (%)", value=10.0, format="%.2f")
+default_profit = st.sidebar.number_input("Profit (%)", value=8.0, format="%.2f")
 
+# ---------- Tabs ----------
 tabs = st.tabs(["Bulk / DIN","Single Calculator","DIN DB","Materials","Vendor DB","History","Trusted Source"])
 
 # ---------- DIN DB tab ----------
@@ -186,23 +151,23 @@ with tabs[6]:
 with tabs[1]:
     st.header("Single Item Calculator")
     stock_type = st.selectbox("Stock Type", ["Round Bar","Hex Bar","Square Bar","Tube","Sheet/Cold Formed"])
-    diameter = st.number_input("Diameter / AF / Side / OD (mm)", 30.0)
-    length = st.number_input("Length (mm)", 50.0)
+    diameter = st.number_input("Diameter / AF / Side / OD (mm)", value=30.0, format="%.2f")
+    length   = st.number_input("Length (mm)", value=50.0, format="%.2f")
     auto_parting = st.checkbox("Auto parting", True)
     def compute_auto_parting(L):
-        if L<=25: return 3
-        if L<=35: return 4
-        if L<=50: return 5
-        if L<=65: return 6
-        return 7
-    parting = compute_auto_parting(length) if auto_parting else st.number_input("Parting", 5)
-    qty = st.number_input("Quantity", 100, min_value=1)
+        if L<=25: return 3.0
+        if L<=35: return 4.0
+        if L<=50: return 5.0
+        if L<=65: return 6.0
+        return 7.0
+    parting = compute_auto_parting(length) if auto_parting else st.number_input("Parting (mm)", value=5.0, format="%.2f")
+    qty = st.number_input("Quantity", value=100, min_value=1, step=1)
     material = st.selectbox("Material", st.session_state.materials_df["Material"].tolist())
     mrow = st.session_state.materials_df[st.session_state.materials_df["Material"]==material].iloc[0]
-    density = st.number_input("Density", mrow["Density (kg/m3)"])
-    mat_price = st.number_input("Material price (₹/kg)", mrow["Default Price (₹/kg)"])
+    density = st.number_input("Density", value=mrow["Density (kg/m3)"], format="%.2f")
+    mat_price = st.number_input("Material price (₹/kg)", value=mrow["Default Price (₹/kg)"], format="%.2f")
     mass_kg = volume_by_stock(stock_type,diameter,length+parting)*density/1e9
     material_cost = mass_kg*mat_price
-    final_price_inr = material_cost  # simplified example; you can add machining, tooling etc.
+    final_price_inr = material_cost
     st.metric("Material kg/pc", f"{mass_kg:.6f}")
     st.metric("Final price / pc (INR)", f"₹ {final_price_inr:.4f}")
