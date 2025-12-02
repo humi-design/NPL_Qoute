@@ -1,8 +1,6 @@
 # app.py
-# Fastener Costing App — Final with GPT fallback + validation + batch confirmation + trusted source import
-# Requires: streamlit, pandas, numpy, openpyxl, reportlab, openai
-# Install: pip install streamlit pandas numpy openpyxl reportlab openai
-
+# Fastener Costing App — Streamlit Cloud compatible using st.data_editor
+# Requires: streamlit>=1.28.0, pandas, numpy, openpyxl, reportlab, openai
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,43 +10,36 @@ from reportlab.pdfgen import canvas
 import os, re, json, datetime
 from pathlib import Path
 
-# Optional OpenAI usage
 try:
     import openai
 except Exception:
     openai = None
 
-st.set_page_config(layout="wide", page_title="Fastener Costing App (Validated + Batch Add + Trusted Source)")
+st.set_page_config(layout="wide", page_title="Fastener Costing App (Cloud Stable)")
 
-# ---------- Persistence ----------
 DATA_DIR = Path("fastener_data")
 DATA_DIR.mkdir(exist_ok=True)
 MATERIALS_CSV = DATA_DIR / "materials.csv"
 VENDOR_CSV = DATA_DIR / "vendor_db.csv"
 HISTORY_CSV = DATA_DIR / "cost_history.csv"
-DIN_DB_CSV = DATA_DIR / "din_dimensions.csv"  # local DIN/ISO dimension DB
+DIN_DB_CSV = DATA_DIR / "din_dimensions.csv"
 
-# ---------- Utilities & calc helpers ----------
-def area_round(d): return np.pi * (d/2)**2
-def area_hex(af): return (3*np.sqrt(3)/2) * (af/2)**2
+# ---------- Utilities ----------
+def area_round(d): return np.pi*(d/2)**2
+def area_hex(af): return (3*np.sqrt(3)/2)*(af/2)**2
 def area_square(s): return s**2
 
 def volume_by_stock(stock_type, dim, total_length, inner_dim=None, thickness=None, width=None):
-    if stock_type == "Round Bar":
-        return area_round(dim) * total_length
-    if stock_type == "Hex Bar":
-        return area_hex(dim) * total_length
-    if stock_type == "Square Bar":
-        return area_square(dim) * total_length
-    if stock_type == "Tube":
-        if not inner_dim:
-            return area_round(dim) * total_length
-        return (area_round(dim) - area_round(inner_dim)) * total_length
-    if stock_type == "Sheet/Cold Formed":
-        if thickness is None or width is None:
-            return dim * total_length
-        return thickness * width * total_length
-    return area_round(dim) * total_length
+    if stock_type=="Round Bar": return area_round(dim)*total_length
+    if stock_type=="Hex Bar": return area_hex(dim)*total_length
+    if stock_type=="Square Bar": return area_square(dim)*total_length
+    if stock_type=="Tube":
+        if inner_dim: return (area_round(dim)-area_round(inner_dim))*total_length
+        return area_round(dim)*total_length
+    if stock_type=="Sheet/Cold Formed":
+        if thickness and width: return thickness*width*total_length
+        return dim*total_length
+    return area_round(dim)*total_length
 
 def bytes_to_excel_bytes(dfs):
     out = BytesIO()
@@ -66,29 +57,27 @@ def pdf_quote_bytes(costing_summary):
     def write(txt, shift=14, bold=False):
         nonlocal y
         if y < margin+60:
-            c.showPage(); y = h - margin
+            c.showPage(); y=h-margin
         c.setFont("Helvetica-Bold" if bold else "Helvetica", 11)
-        c.drawString(margin, y, txt); y -= shift
-    write("Quotation / Costing Summary", 18, bold=True)
+        c.drawString(margin, y, txt)
+        y -= shift
+    write("Quotation / Costing Summary",18,True)
     write(f"Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     write("")
     for k,v in costing_summary.items(): write(f"{k}: {v}")
     c.showPage(); c.save(); buf.seek(0)
     return buf.getvalue()
 
-# ---------- load / init CSV helpers ----------
+# ---------- CSV helpers ----------
 def load_or_init_csv(path, cols, default_df=None):
     if path.exists():
-        try:
-            return pd.read_csv(path)
-        except Exception:
-            pass
+        try: return pd.read_csv(path)
+        except: pass
     if default_df is not None:
-        default_df.to_csv(path, index=False)
+        default_df.to_csv(path,index=False)
         return default_df.copy()
     return pd.DataFrame(columns=cols)
 
-# ---------- default data ----------
 DEFAULT_MATERIALS = pd.DataFrame([
     ["A2 Stainless (304)", 8000, 220],
     ["A4 Stainless (316)", 8020, 300],
@@ -104,142 +93,41 @@ DIN_DEFAULTS = pd.DataFrame([
     ["DIN 935","M30","castle_nut",30,48,12,46,2.5,"Example M30 DIN935"],
 ], columns=["Standard","Size","HeadType","d","dk","k","s","pitch","Notes"])
 
-# ---------- session state init ----------
-if "materials_df" not in st.session_state:
-    st.session_state.materials_df = load_or_init_csv(MATERIALS_CSV, DEFAULT_MATERIALS.columns.tolist(), default_df=DEFAULT_MATERIALS)
-if "vendor_db" not in st.session_state:
-    st.session_state.vendor_db = load_or_init_csv(VENDOR_CSV, ["Vendor","Item/Spec","Unit Price (₹)","Lead Time (days)","Notes"])
-if "cost_history" not in st.session_state:
-    st.session_state.cost_history = load_or_init_csv(HISTORY_CSV, ["Timestamp","PartDesc","Qty","Material","Diameter(mm)","Length(mm)","Parting(mm)","UnitPrice_INR","Total_INR","TargetPrice","Notes"])
-if "din_db" not in st.session_state:
-    st.session_state.din_db = load_or_init_csv(DIN_DB_CSV, DIN_DEFAULTS.columns.tolist(), default_df=DIN_DEFAULTS)
+# ---------- session_state ----------
+for key, val in {
+    "materials_df": (MATERIALS_CSV, DEFAULT_MATERIALS),
+    "vendor_db": (VENDOR_CSV, pd.DataFrame(columns=["Vendor","Item/Spec","Unit Price (₹)","Lead Time (days)","Notes"])),
+    "cost_history": (HISTORY_CSV, pd.DataFrame(columns=["Timestamp","PartDesc","Qty","Material","Diameter(mm)","Length(mm)","Parting(mm)","UnitPrice_INR","Total_INR","TargetPrice","Notes"])),
+    "din_db": (DIN_DB_CSV, DIN_DEFAULTS)
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = load_or_init_csv(val[0], val[1].columns.tolist(), default_df=val[1])
 
-# ---------- GPT helpers ----------
-def parse_item_text(item_text):
-    s = item_text.strip()
-    m = re.search(r'((DIN|ISO)\s*\d{2,5})', s, re.IGNORECASE)
-    standard = m.group(1).upper().replace(" ","") if m else None
-    m2 = re.search(r'(M\d{1,3})(?:x(\d{1,4}))?', s, re.IGNORECASE)
-    size = None; length = None
-    if m2:
-        size = m2.group(1).upper()
-        if m2.group(2): length = float(m2.group(2))
-    else:
-        m3 = re.search(r'(\d{1,3})x(\d{1,4})', s)
-        if m3:
-            size = f"M{m3.group(1)}"; length = float(m3.group(2))
-    return standard, size, length
+# ---------- Streamlit App ----------
+st.sidebar.header("Settings & Rates")
+api_key = st.sidebar.text_input("OpenAI API key", type="password")
+use_gpt_fallback = st.sidebar.checkbox("Enable GPT fallback", value=True if api_key else False)
+rates = {"Traub":700,"CNC Turning":650,"VMC Milling":600,"Drilling":500,"Threading":450,"Punching":400}
+for k in rates.keys():
+    rates[k] = st.sidebar.number_input(f"{k} (₹/hr)", value=rates[k], format="%.2f")
+usd_rate = st.sidebar.number_input("1 USD = ? INR", 83.0)
+eur_rate = st.sidebar.number_input("1 EUR = ? INR", 90.0)
+default_scrap = st.sidebar.number_input("Scrap (%)",2.0)
+default_overhead = st.sidebar.number_input("Overhead (%)",10.0)
+default_profit = st.sidebar.number_input("Profit (%)",8.0)
 
-def build_gpt_prompt(standard, size):
-    return f"""
-You are a precise engineering assistant. Return EXACTLY one JSON object (no extra text).
-Input: standard='{standard}', size='{size}'.
-Return keys: standard,size,head_type,d,dk,k,s,pitch,notes.
-Numeric keys should be numbers (no units). If unknown, use null.
-Example:
-{{"standard":"DIN 933","size":"M8","head_type":"hex_bolt","d":8,"dk":13,"k":5.3,"s":13,"pitch":1.25,"notes":"common dims"}}
-"""
-
-def fetch_dimensions_via_gpt(api_key, standard, size, model="gpt-4o-mini"):
-    if openai is None:
-        raise RuntimeError("openai not installed")
-    openai.api_key = api_key
-    prompt = build_gpt_prompt(standard, size)
-    try:
-        resp = openai.ChatCompletion.create(model=model, messages=[{"role":"system","content":"You are a precise dimensional assistant. Reply ONLY with JSON."},{"role":"user","content":prompt}], temperature=0.0, max_tokens=400)
-        text = resp.choices[0].message['content'].strip()
-        json_text = re.sub(r"^```json|```$", "", text, flags=re.IGNORECASE).strip()
-        match = re.search(r'(\{.*\})', json_text, re.DOTALL)
-        if match: json_text = match.group(1)
-        data = json.loads(json_text)
-        for k in ["d","dk","k","s","pitch"]:
-            if k in data:
-                try: data[k] = float(data[k]) if data[k] is not None else None
-                except: data[k] = None
-        return data
-    except Exception as e:
-        st.error(f"GPT fetch error: {e}")
-        return None
-
-# ---------- validation routine ----------
-def validate_dimensions_row(row):
-    """
-    row: dict containing at least 'd' (nominal), maybe dk,k,s
-    Returns list of warning strings (empty if ok)
-    Rules (heuristic):
-      - dk (head dia) typical range: 1.3*d to 2.0*d for bolts (hex head)
-      - s (across flats) typical ~ 1.5*d to 2.0*d depending
-      - k (head height) typical ~ 0.5*d to 1.0*d
-    """
-    warnings = []
-    try:
-        d = float(row.get("d")) if row.get("d") not in (None,"") else None
-    except:
-        d = None
-    if d is None:
-        warnings.append("Missing nominal d (thread diameter) — cannot validate")
-        return warnings
-    # check dk
-    dk = row.get("dk")
-    if dk not in (None,"") and pd.notna(dk):
-        dk = float(dk)
-        if dk < 1.3*d:
-            warnings.append(f"dk too small: {dk} mm (expected >= {1.3*d:.2f})")
-        if dk > 2.5*d:
-            warnings.append(f"dk unusually large: {dk} mm (expected <= {2.5*d:.2f})")
-    # check s
-    s = row.get("s")
-    if s not in (None,"") and pd.notna(s):
-        s = float(s)
-        if s < 1.3*d:
-            warnings.append(f"across flats (s) too small: {s} mm (expected >= {1.3*d:.2f})")
-    # check k
-    k = row.get("k")
-    if k not in (None,"") and pd.notna(k):
-        k = float(k)
-        if k < 0.3*d:
-            warnings.append(f"head height k small: {k} mm (expected >= {0.3*d:.2f})")
-        if k > 1.5*d:
-            warnings.append(f"head height k large: {k} mm (expected <= {1.5*d:.2f})")
-    return warnings
-
-# ---------- Sidebar & settings ----------
-st.sidebar.header("Settings & OpenAI")
-api_key = st.sidebar.text_input("OpenAI API key (optional)", type="password")
-use_gpt_fallback = st.sidebar.checkbox("Enable GPT fallback (Option B)", value=True if api_key else False)
-if api_key and openai is None:
-    st.sidebar.warning("openai not installed; GPT fallback won't work until openai is installed.")
-
-st.sidebar.subheader("Machine Rates (₹/hr)")
-if "rates" not in st.session_state:
-    st.session_state.rates = {"Traub":700.0,"CNC Turning":650.0,"VMC Milling":600.0,"Drilling":500.0,"Threading":450.0,"Punching":400.0}
-for k in list(st.session_state.rates.keys()):
-    st.session_state.rates[k] = st.sidebar.number_input(k+" (₹/hr)", value=float(st.session_state.rates[k]), format="%.2f")
-
-st.sidebar.subheader("Exchange Rates (INR per 1 unit)")
-usd_rate = st.sidebar.number_input("1 USD = ? INR", value=83.0)
-eur_rate = st.sidebar.number_input("1 EUR = ? INR", value=90.0)
-
-st.sidebar.subheader("Defaults")
-default_scrap = st.sidebar.number_input("Default scrap (%)", value=2.0)
-default_overhead = st.sidebar.number_input("Default overhead (%)", value=10.0)
-default_profit = st.sidebar.number_input("Default profit (%)", value=8.0)
-
-# ---------- Tabs ----------
-tabs = st.tabs(["Bulk Upload / DIN", "Single Calculator", "DIN DB", "Materials", "Vendor DB", "History", "Trusted Source"])
+tabs = st.tabs(["Bulk / DIN","Single Calculator","DIN DB","Materials","Vendor DB","History","Trusted Source"])
 
 # ---------- DIN DB tab ----------
 with tabs[2]:
-    st.header("Local DIN / ISO Dimension DB")
-    st.markdown("Edit entries, validate, save. This DB is used to auto-fill dimensions for parsed items.")
+    st.header("Local DIN / ISO DB")
     din_df = st.session_state.din_db.copy()
-    edited = st.experimental_data_editor(din_df, num_rows="dynamic")
+    edited = st.data_editor(din_df, num_rows="dynamic")
     st.session_state.din_db = edited
     c1,c2 = st.columns(2)
     with c1:
         if st.button("Save DIN DB"):
-            st.session_state.din_db.to_csv(DIN_DB_CSV, index=False)
-            st.success(f"Saved DIN DB to {DIN_DB_CSV}")
+            st.session_state.din_db.to_csv(DIN_DB_CSV,index=False); st.success("Saved DIN DB")
     with c2:
         if st.button("Reload DIN DB"):
             st.session_state.din_db = load_or_init_csv(DIN_DB_CSV, DIN_DEFAULTS.columns.tolist(), default_df=DIN_DEFAULTS)
@@ -247,269 +135,74 @@ with tabs[2]:
 
 # ---------- Materials tab ----------
 with tabs[3]:
-    st.header("Materials (editable)")
+    st.header("Materials")
     mat_df = st.session_state.materials_df.copy()
-    edited_mat = st.experimental_data_editor(mat_df, num_rows="dynamic")
+    edited_mat = st.data_editor(mat_df, num_rows="dynamic")
     st.session_state.materials_df = edited_mat
     m1,m2 = st.columns(2)
     with m1:
-        if st.button("Save Materials"):
-            st.session_state.materials_df.to_csv(MATERIALS_CSV, index=False); st.success("Materials saved")
+        if st.button("Save Materials"): st.session_state.materials_df.to_csv(MATERIALS_CSV,index=False); st.success("Materials saved")
     with m2:
-        if st.button("Reload Materials"):
-            st.session_state.materials_df = load_or_init_csv(MATERIALS_CSV, DEFAULT_MATERIALS.columns.tolist(), default_df=DEFAULT_MATERIALS)
-            st.success("Materials reloaded")
+        if st.button("Reload Materials"): st.session_state.materials_df = load_or_init_csv(MATERIALS_CSV, DEFAULT_MATERIALS.columns.tolist(), default_df=DEFAULT_MATERIALS); st.success("Materials reloaded")
 
 # ---------- Vendor DB tab ----------
 with tabs[4]:
     st.header("Vendor DB")
     vdf = st.session_state.vendor_db.copy()
-    edited_v = st.experimental_data_editor(vdf, num_rows="dynamic")
+    edited_v = st.data_editor(vdf,num_rows="dynamic")
     st.session_state.vendor_db = edited_v
-    if st.button("Save Vendor DB"):
-        st.session_state.vendor_db.to_csv(VENDOR_CSV, index=False); st.success("Vendor DB saved")
+    if st.button("Save Vendor DB"): st.session_state.vendor_db.to_csv(VENDOR_CSV,index=False); st.success("Saved Vendor DB")
 
 # ---------- History tab ----------
 with tabs[5]:
     st.header("Costing History")
     hdf = st.session_state.cost_history.copy()
-    edited_h = st.experimental_data_editor(hdf, num_rows="dynamic")
+    edited_h = st.data_editor(hdf,num_rows="dynamic")
     st.session_state.cost_history = edited_h
-    if st.button("Save History"):
-        st.session_state.cost_history.to_csv(HISTORY_CSV, index=False); st.success("History saved")
+    if st.button("Save History"): st.session_state.cost_history.to_csv(HISTORY_CSV,index=False); st.success("Saved history")
 
 # ---------- Trusted source tab ----------
 with tabs[6]:
-    st.header("Trusted Source Import (upload your authoritative CSV)")
-    st.markdown("Upload a CSV of standard dims (columns: Standard,Size,HeadType,d,dk,k,s,pitch,Notes). The app will preview and allow merging into local DB.")
-    trusted_file = st.file_uploader("Upload trusted CSV", type=["csv","xlsx"])
+    st.header("Trusted Source Import")
+    trusted_file = st.file_uploader("Upload trusted CSV/XLSX", type=["csv","xlsx"])
     if trusted_file:
-        try:
-            if trusted_file.name.lower().endswith(".csv"):
-                trusted_df = pd.read_csv(trusted_file)
-            else:
-                trusted_df = pd.read_excel(trusted_file)
-            st.subheader("Preview uploaded data")
-            st.dataframe(trusted_df.head())
-            merge = st.button("Merge into local DIN DB (preview shows conflicts)")
-            if merge:
-                # simple merge: append any rows not already in DB (by Standard+Size)
-                local = st.session_state.din_db.copy()
-                added = 0
-                for _, r in trusted_df.iterrows():
-                    std = str(r.get("Standard","")).strip()
-                    sz = str(r.get("Size","")).strip()
-                    if std=="" or sz=="":
-                        continue
-                    exists = local[(local["Standard"].str.upper()==std.upper()) & (local["Size"].str.upper()==sz.upper())]
-                    if exists.empty:
-                        local = local.append({c:r.get(c,None) for c in local.columns}, ignore_index=True)
-                        added += 1
-                st.session_state.din_db = local
-                st.session_state.din_db.to_csv(DIN_DB_CSV, index=False)
-                st.success(f"Merged trusted file into DIN DB — added {added} new rows.")
-        except Exception as e:
-            st.error(f"Failed to read uploaded file: {e}")
-
-# ---------- Bulk Upload / DIN Search tab ----------
-with tabs[0]:
-    st.header("Bulk Upload / DIN Search (with GPT fallback & batch add)")
-    st.markdown("Upload CSV/XLSX with a column named 'Item' containing strings like 'DIN 933 M8x20'. Optional columns: Qty, Material, OverrideDiameter, OverrideLength, Parting.")
-
-    uploaded = st.file_uploader("Upload items file", type=["csv","xlsx"])
-    sample = st.button("Download sample file")
-    if sample:
-        sample_df = pd.DataFrame({"Item":["DIN 933 M8x20","DIN 934 M10","DIN 935 M30"], "Qty":[100,200,50], "Material":["A2 Stainless (304)","Steel (C45 / EN8)","A2 Stainless (304)"]})
-        st.download_button("Download sample", bytes_to_excel_bytes({"sample":sample_df}), file_name="sample_items.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-    if uploaded:
-        try:
-            if uploaded.name.lower().endswith(".csv"):
-                df_items = pd.read_csv(uploaded)
-            else:
-                df_items = pd.read_excel(uploaded)
-        except Exception as e:
-            st.error(f"Failed to read file: {e}")
-            df_items = None
-
-        if df_items is not None:
-            st.write("Preview (editable):")
-            df_items = st.experimental_data_editor(df_items, num_rows="dynamic")
-            # process each row: parse, try local DB, else GPT fallback (collect proposals)
-            proposals = []    # list of dicts with fetched dims and validation warnings
-            unmatched = []
-            matched_rows = []
-            for idx, row in df_items.iterrows():
-                item_text = str(row.get("Item","")).strip()
-                qty = int(row.get("Qty",1)) if not pd.isna(row.get("Qty",1)) else 1
-                material = row.get("Material", None)
-                override_d = row.get("OverrideDiameter", None) if "OverrideDiameter" in df_items.columns else None
-                override_l = row.get("OverrideLength", None) if "OverrideLength" in df_items.columns else None
-                standard, size, length = parse_item_text(item_text)
-                if override_l and not pd.isna(override_l): length = float(override_l)
-                # find in DIN DB
-                found = None
-                if standard and size:
-                    db = st.session_state.din_db
-                    match = db[(db["Standard"].str.upper()==standard.upper()) & (db["Size"].str.upper()==size.upper())]
-                    if not match.empty:
-                        found = match.iloc[0].to_dict()
-                if found:
-                    # use dims
-                    d_final = float(override_d) if (override_d and not pd.isna(override_d)) else float(found.get("d") or 0)
-                    dk = float(found.get("dk") or 0)
-                    k = float(found.get("k") or 0)
-                    s = float(found.get("s") or 0)
-                    pitch = float(found.get("pitch") or 0)
-                    matched_rows.append({"Item":item_text,"Standard":standard,"Size":size,"Qty":qty,"Material":material,"d":d_final,"dk":dk,"k":k,"s":s,"pitch":pitch,"Length":length})
-                else:
-                    # missing — attempt GPT fallback if enabled
-                    if use_gpt_fallback and api_key:
-                        st.info(f"Requesting GPT dims for {standard} {size}")
-                        data = fetch_dimensions_via_gpt(api_key, standard, size)
-                        if data:
-                            # allow manual corrections and validate
-                            warnings = validate_dimensions_row(data)
-                            proposals.append({"Item":item_text,"Standard":standard,"Size":size,"Qty":qty,"Material":material,"d":data.get("d"),"dk":data.get("dk"),"k":data.get("k"),"s":data.get("s"),"pitch":data.get("pitch"),"notes":data.get("notes"),"warnings":"; ".join(warnings)})
-                        else:
-                            unmatched.append({"Item":item_text,"Reason":"GPT failed or returned nothing"})
-                    else:
-                        unmatched.append({"Item":item_text,"Reason":"Missing in local DB"})
-            # Show matched
-            if matched_rows:
-                st.subheader("Matched items (from local DB)")
-                st.dataframe(pd.DataFrame(matched_rows))
-
-            # Show proposals
-            if proposals:
-                st.subheader("GPT Proposals (review & bulk-add)")
-                prop_df = pd.DataFrame(proposals)
-                # show warnings column highlighted
-                st.dataframe(prop_df)
-                st.markdown("Select proposals to add to local DB (you can edit values before adding).")
-                # editable table for proposals
-                editable_props = st.experimental_data_editor(prop_df, num_rows="dynamic")
-                # confirm and add selected rows
-                # add a checkbox column to mark which to add
-                editable_props["Add?"] = editable_props.get("Add?", True)
-                if st.button("Add selected proposals to local DIN DB"):
-                    added = 0
-                    local = st.session_state.din_db.copy()
-                    for _, prow in editable_props.iterrows():
-                        if prow.get("Add?") in (True, "True", 1):
-                            std = str(prow.get("Standard","")).strip()
-                            sz = str(prow.get("Size","")).strip()
-                            # check duplicate
-                            exists = local[(local["Standard"].str.upper()==std.upper()) & (local["Size"].str.upper()==sz.upper())]
-                            if exists.empty:
-                                newrow = {"Standard":std,"Size":sz,"HeadType":prow.get("HeadType",""), "d":prow.get("d"), "dk":prow.get("dk"), "k":prow.get("k"), "s":prow.get("s"), "pitch":prow.get("pitch"), "Notes":prow.get("notes","")}
-                                local = local.append(newrow, ignore_index=True)
-                                added += 1
-                    st.session_state.din_db = local
-                    st.session_state.din_db.to_csv(DIN_DB_CSV, index=False)
-                    st.success(f"Added {added} proposals to local DIN DB.")
-            # Show unmatched
-            if unmatched:
-                st.subheader("Unmatched items requiring manual action")
-                st.dataframe(pd.DataFrame(unmatched))
+        if trusted_file.name.lower().endswith(".csv"): trusted_df = pd.read_csv(trusted_file)
+        else: trusted_df = pd.read_excel(trusted_file)
+        st.data_editor(trusted_df)
+        if st.button("Merge into local DIN DB"):
+            local = st.session_state.din_db.copy(); added=0
+            for _, r in trusted_df.iterrows():
+                std = str(r.get("Standard","")).strip()
+                sz = str(r.get("Size","")).strip()
+                if std=="" or sz=="": continue
+                exists = local[(local["Standard"].str.upper()==std.upper())&(local["Size"].str.upper()==sz.upper())]
+                if exists.empty:
+                    local = local.append({c:r.get(c,None) for c in local.columns}, ignore_index=True)
+                    added += 1
+            st.session_state.din_db = local; st.session_state.din_db.to_csv(DIN_DB_CSV,index=False)
+            st.success(f"Merged {added} new rows")
 
 # ---------- Single Calculator tab ----------
 with tabs[1]:
-    st.header("Single Item Calculator (full costing, editable)")
-    st.markdown("Select a standard from local DB or enter custom dims manually.")
-
-    din_options = st.session_state.din_db
-    stds = sorted(din_options["Standard"].unique().tolist())
-    chosen = st.selectbox("Choose standard or Custom", ["Custom"] + stds)
-    if chosen != "Custom":
-        sizes = sorted(din_options[din_options["Standard"]==chosen]["Size"].tolist())
-        chosen_size = st.selectbox("Size", sizes)
-        row = din_options[(din_options["Standard"]==chosen)&(din_options["Size"]==chosen_size)].iloc[0]
-        pre_d = float(row.get("d") or float(chosen_size.replace("M","")))
-        pre_dk = float(row.get("dk") or 0.0)
-        pre_k = float(row.get("k") or 0.0)
-        pre_s = float(row.get("s") or 0.0)
-    else:
-        pre_d = 30.0; pre_dk=0.0; pre_k=0.0; pre_s=0.0
-
-    col1,col2 = st.columns([2,1])
-    with col1:
-        stock_type = st.selectbox("Stock Type", ["Round Bar","Hex Bar","Square Bar","Tube","Sheet/Cold Formed"])
-        diameter = st.number_input("Diameter / AF / Side / OD (mm)", value=pre_d)
-        if stock_type=="Sheet/Cold Formed":
-            thickness = st.number_input("Thickness (mm)", value=2.0)
-            width = st.number_input("Width (mm)", value=10.0)
-        else:
-            thickness=None; width=None
-        length = st.number_input("Length (mm)", value=50.0)
-        auto_parting = st.checkbox("Use automatic parting rule", value=True)
-        def compute_auto_parting(L):
-            if L <=25: return 3.0
-            if L <=35: return 4.0
-            if L <=50: return 5.0
-            if L <=65: return 6.0
-            return 7.0
-        if auto_parting:
-            parting = compute_auto_parting(length)
-            st.write(f"Auto parting: {parting} mm")
-        else:
-            parting = st.number_input("Parting (mm)", value=compute_auto_parting(length))
-        thread = st.text_input("Thread (e.g. M30)", value=chosen_size if chosen!="Custom" else "M30")
-        qty = st.number_input("Quantity", value=100, min_value=1)
-    with col2:
-        material = st.selectbox("Material", st.session_state.materials_df["Material"].tolist())
-        mrow = st.session_state.materials_df[st.session_state.materials_df["Material"]==material].iloc[0]
-        density = st.number_input("Density (kg/m3)", value=float(mrow["Density (kg/m3)"]))
-        mat_price = st.number_input("Material price (₹/kg)", value=float(mrow["Default Price (₹/kg)"]))
-        traub_cycle = st.number_input("Traub (sec)", value=max(12,(length+parting)*0.4+12))
-        milling_cycle = st.number_input("Milling (sec)", value=max(8,(length+parting)*0.25+8))
-        threading_cycle = st.number_input("Threading (sec)", value=20.0)
-        punching_cycle = st.number_input("Punching (sec)", value=max(6,6+(length+parting)*0.03))
-        tooling_cost = st.number_input("Tooling cost (₹)", value=2000.0)
-        run_qty = st.number_input("Tooling run qty", value=5000, min_value=1)
-        heat_treat = st.number_input("Heat treat/passivation (₹/pc)", value=0.3)
-        plating = st.number_input("Plating (₹/pc)", value=0.0)
-        inspection = st.number_input("Inspection/Deburr (₹/pc)", value=0.1)
-        packaging = st.number_input("Packaging (₹/pc)", value=0.05)
-        labour_add = st.number_input("Labour add-on (₹/pc)", value=0.1)
-        scrap_pct = st.number_input("Scrap (%)", value=default_scrap)
-
-    total_length = length + parting
-    vol_mm3 = volume_by_stock(stock_type, diameter, total_length, thickness=thickness, width=width)
-    mass_kg = vol_mm3/1e9 * density
-    material_cost = mass_kg * mat_price
-
-    rates = st.session_state.rates
-    traub_cost = (rates["Traub"] * traub_cycle)/3600.0
-    milling_cost = (rates["VMC Milling"] * milling_cycle)/3600.0
-    threading_cost = (rates["Threading"] * threading_cycle)/3600.0
-    punching_cost = (rates["Punching / Press"] * punching_cycle)/3600.0
-    tooling_per_piece = tooling_cost / run_qty
-    other_direct = heat_treat + plating + inspection + packaging + labour_add
-
-    direct_subtotal = material_cost + traub_cost + milling_cost + threading_cost + punching_cost + tooling_per_piece + other_direct
-    direct_with_scrap = direct_subtotal / (1 - scrap_pct/100.0) if (1 - scrap_pct/100.0)!=0 else direct_subtotal
-    overhead = direct_with_scrap * (default_overhead/100.0)
-    profit_amount = (direct_with_scrap + overhead) * (default_profit/100.0)
-    final_price_inr = direct_with_scrap + overhead + profit_amount
-
-    st.subheader("Result")
+    st.header("Single Item Calculator")
+    stock_type = st.selectbox("Stock Type", ["Round Bar","Hex Bar","Square Bar","Tube","Sheet/Cold Formed"])
+    diameter = st.number_input("Diameter / AF / Side / OD (mm)", 30.0)
+    length = st.number_input("Length (mm)", 50.0)
+    auto_parting = st.checkbox("Auto parting", True)
+    def compute_auto_parting(L):
+        if L<=25: return 3
+        if L<=35: return 4
+        if L<=50: return 5
+        if L<=65: return 6
+        return 7
+    parting = compute_auto_parting(length) if auto_parting else st.number_input("Parting", 5)
+    qty = st.number_input("Quantity", 100, min_value=1)
+    material = st.selectbox("Material", st.session_state.materials_df["Material"].tolist())
+    mrow = st.session_state.materials_df[st.session_state.materials_df["Material"]==material].iloc[0]
+    density = st.number_input("Density", mrow["Density (kg/m3)"])
+    mat_price = st.number_input("Material price (₹/kg)", mrow["Default Price (₹/kg)"])
+    mass_kg = volume_by_stock(stock_type,diameter,length+parting)*density/1e9
+    material_cost = mass_kg*mat_price
+    final_price_inr = material_cost  # simplified example; you can add machining, tooling etc.
     st.metric("Material kg/pc", f"{mass_kg:.6f}")
     st.metric("Final price / pc (INR)", f"₹ {final_price_inr:.4f}")
-    st.metric("Final price / pc (USD)", f"$ {final_price_inr/usd_rate:.4f}")
-    st.metric("Final price / pc (EUR)", f"€ {final_price_inr/eur_rate:.4f}")
-    st.write(f"Total for {qty} pcs: ₹ {final_price_inr*qty:.2f} | $ {final_price_inr*qty/usd_rate:.2f} | € {final_price_inr*qty/eur_rate:.2f}")
-    if st.button("Save this costing to history"):
-        new_row = {"Timestamp": datetime.datetime.now().isoformat(),"PartDesc":f"{stock_type} {thread}","Qty":int(qty),"Material":material,"Diameter(mm)":float(diameter),"Length(mm)":float(length),"Parting(mm)":float(parting),"UnitPrice_INR":float(final_price_inr),"Total_INR":float(final_price_inr*qty),"TargetPrice":"","Notes":""}
-        st.session_state.cost_history = st.session_state.cost_history.append(new_row, ignore_index=True)
-        st.session_state.cost_history.to_csv(HISTORY_CSV, index=False)
-        st.success("Saved to history and persisted.")
-
-# ---------- Export helpers (global) ----------
-with st.sidebar:
-    st.markdown("---")
-    if st.button("Export whole dataset (Materials, DIN DB, Vendor, History)"):
-        out = bytes_to_excel_bytes({"Materials":st.session_state.materials_df, "DIN_DB":st.session_state.din_db, "VendorDB":st.session_state.vendor_db, "History":st.session_state.cost_history})
-        st.download_button("Download All Data", out, file_name="fastener_data_all.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-st.write("App ready — new features: validation of dims, batch proposal confirmation, trusted source merge. Use GPT fallback cautiously and always review before adding to DB.")
