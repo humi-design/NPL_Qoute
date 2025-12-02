@@ -25,11 +25,11 @@ if "cost_history" not in st.session_state:
 
 # -------------------- Sidebar --------------------
 st.sidebar.header("Rates & Settings")
-usd_rate = st.sidebar.number_input("1 USD = ? INR", 83.0)
-eur_rate = st.sidebar.number_input("1 EUR = ? INR", 90.0)
-default_scrap = st.sidebar.number_input("Scrap (%)", 2.0)
-default_overhead = st.sidebar.number_input("Overhead (%)", 10.0)
-default_profit = st.sidebar.number_input("Profit (%)", 8.0)
+usd_rate = st.sidebar.number_input("1 USD = ? INR", value=83.0, format="%.2f")
+eur_rate = st.sidebar.number_input("1 EUR = ? INR", value=90.0, format="%.2f")
+default_scrap = st.sidebar.number_input("Scrap (%)", value=2.0, format="%.2f")
+default_overhead = st.sidebar.number_input("Overhead (%)", value=10.0, format="%.2f")
+default_profit = st.sidebar.number_input("Profit (%)", value=8.0, format="%.2f")
 
 # -------------------- Tabs --------------------
 tabs = st.tabs(["Bulk / DIN","Single Calculator","DIN DB","Materials","History"])
@@ -38,19 +38,18 @@ tabs = st.tabs(["Bulk / DIN","Single Calculator","DIN DB","Materials","History"]
 with tabs[1]:
     st.header("Single Item Calculator")
     stock_type = st.selectbox("Stock Type", ["Round Bar","Hex Bar","Square Bar","Tube","Sheet/Cold Formed"])
-    diameter = st.number_input("Diameter / AF / Side / OD (mm)", 30.0, format="%.2f")
-    length = st.number_input("Length (mm)", 50.0, format="%.2f")
+    diameter = st.number_input("Diameter / AF / Side / OD (mm)", value=30.0, min_value=0.1, step=0.1, format="%.2f")
+    length = st.number_input("Length (mm)", value=50.0, min_value=0.1, step=0.1, format="%.2f")
     auto_parting = st.checkbox("Auto parting", True)
-    parting = compute_auto_parting(length) if auto_parting else st.number_input("Parting (mm)", 5.0, format="%.2f")
-    qty = st.number_input("Quantity", 100, min_value=1, step=1)
+    parting = compute_auto_parting(length) if auto_parting else st.number_input("Parting (mm)", value=5.0, min_value=0.1, step=0.1, format="%.2f")
+    qty = st.number_input("Quantity", value=100, min_value=1, step=1, format="%d")
     material = st.selectbox("Material", st.session_state.materials_df["Material"].tolist())
     mrow = st.session_state.materials_df[st.session_state.materials_df["Material"]==material].iloc[0]
-    density = st.number_input("Density (kg/m3)", mrow["Density (kg/m3)"], format="%.2f")
-    mat_price = st.number_input("Material price (₹/kg)", mrow["Default Price (₹/kg)"], format="%.2f")
+    density = st.number_input("Density (kg/m3)", value=mrow["Density (kg/m3)"], min_value=0.1, step=0.1, format="%.2f")
+    mat_price = st.number_input("Material price (₹/kg)", value=mrow["Default Price (₹/kg)"], min_value=0.01, step=0.01, format="%.2f")
 
     mass_kg = volume_by_stock(stock_type, diameter, length+parting)*density/1e9
     material_cost = mass_kg*mat_price
-    # Operations cost default
     traub_cost = material_cost*0.1
     milling_cost = material_cost*0.05
     threading_cost = material_cost*0.05
@@ -68,7 +67,6 @@ with tabs[1]:
 with tabs[0]:
     st.header("Bulk / DIN Batch Costing")
     
-    # Upload bulk list CSV/XLSX
     st.subheader("Bulk Input by DIN / Article Number")
     bulk_file = st.file_uploader("Upload CSV/XLSX with 'DIN', optionally 'Size' & 'Qty'", type=["csv","xlsx"])
     if bulk_file:
@@ -81,15 +79,15 @@ with tabs[0]:
             st.error("CSV must have 'DIN' column")
         else:
             if 'Qty' not in bulk_df.columns:
-                bulk_df['Qty'] = 100  # default quantity
+                bulk_df['Qty'] = 100
             st.data_editor(bulk_df, num_rows="dynamic")
 
     openai_key = st.text_input("OpenAI API Key (for GPT lookup)", type="password")
     stock_type_bulk = st.selectbox("Stock Type", ["Round Bar","Hex Bar","Square Bar","Tube","Sheet/Cold Formed"])
     material_bulk = st.selectbox("Material", st.session_state.materials_df["Material"].tolist())
     mrow_bulk = st.session_state.materials_df[st.session_state.materials_df["Material"]==material_bulk].iloc[0]
-    density_bulk = st.number_input("Density (kg/m3)", value=mrow_bulk["Density (kg/m3)"], format="%.2f")
-    mat_price_bulk = st.number_input("Material price (₹/kg)", value=mrow_bulk["Default Price (₹/kg)"], format="%.2f")
+    density_bulk = st.number_input("Density (kg/m3)", value=mrow_bulk["Density (kg/m3)"], min_value=0.1, step=0.1, format="%.2f")
+    mat_price_bulk = st.number_input("Material price (₹/kg)", value=mrow_bulk["Default Price (₹/kg)"], min_value=0.01, step=0.01, format="%.2f")
     auto_parting_bulk = st.checkbox("Auto parting for bulk", True)
 
     if st.button("Process Bulk DIN List"):
@@ -101,9 +99,8 @@ with tabs[0]:
             for idx, r in bulk_df.iterrows():
                 din_number = str(r['DIN']).strip()
                 size = str(r.get('Size','')).strip()
-                qty_item = r.get('Qty',100)
+                qty_item = int(r.get('Qty',100))
 
-                # Lookup local DB
                 matched = st.session_state.din_db[
                     (st.session_state.din_db['Standard'].str.upper() == din_number.upper()) &
                     ((st.session_state.din_db['Size'].str.upper() == size.upper()) if size else True)
@@ -111,14 +108,14 @@ with tabs[0]:
 
                 if not matched.empty:
                     row = matched.iloc[0]
-                    diameter = row.get('d',10.0)
-                    length = row.get('Length',50.0)
-                    parting = compute_auto_parting(length) if auto_parting_bulk else row.get('Parting',5.0)
+                    diameter = float(row.get('d',10.0))
+                    length = float(row.get('Length',50.0))
+                    parting = compute_auto_parting(length) if auto_parting_bulk else float(row.get('Parting',5.0))
                 else:
                     if openai_key.strip() != "":
                         dims = query_gpt_for_din(din_number, size, "unknown", openai_key)
                         if dims:
-                            diameter = dims[0]
+                            diameter = float(dims[0])
                             length = 50.0
                             parting = compute_auto_parting(length)
                             updated_rows +=1
@@ -129,11 +126,8 @@ with tabs[0]:
                         st.warning(f"Dimensions not found for {din_number} {size}")
                         continue
 
-                # Mass & material cost
                 mass_kg = volume_by_stock(stock_type_bulk, diameter, length+parting)*density_bulk/1e9
                 material_cost = mass_kg*mat_price_bulk
-
-                # Operations cost default
                 traub_cost = material_cost*0.1
                 milling_cost = material_cost*0.05
                 threading_cost = material_cost*0.05
@@ -170,7 +164,6 @@ with tabs[0]:
             processed_df = pd.DataFrame(processed_results)
             st.data_editor(processed_df, num_rows="dynamic")
 
-            # Save to History
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             hist_df = st.session_state.cost_history.copy()
             for _, r in processed_df.iterrows():
@@ -181,7 +174,6 @@ with tabs[0]:
             st.session_state.cost_history.to_csv(HISTORY_CSV,index=False)
             st.success("Saved bulk DIN costing to History tab.")
 
-            # PDF Quotation
             if st.button("Generate Quotation PDF for Bulk DIN"):
                 total_batch = processed_df["Total_INR"].sum()
                 summary = {"Total batch cost (₹)": total_batch, "USD Rate": usd_rate, "EUR Rate": eur_rate}
