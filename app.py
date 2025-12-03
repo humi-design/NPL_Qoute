@@ -541,7 +541,15 @@ with tabs[1]:
                 return float(val)
             except:
                 return float(default)
-        pre_d = safe_float(g(row, ["d","D","nominal"]), default=float(str(chosen_size).replace("M","") if isinstance(chosen_size,str) and chosen_size.upper().startswith("M") else 30.0))
+        # Determine a safe default first
+        if isinstance(chosen_size, str) and chosen_size.upper().startswith("M"):
+            try:
+                default_d = float(chosen_size.upper().replace("M",""))
+            except:
+                default_d = 30.0
+        else:
+            default_d = 30.0
+        pre_d = safe_float(g(row, ["d","D","nominal"]), default=default_d)
         pre_dk = float(g(row, ["dk","DK","head_diameter"]) or 0.0)
         pre_k = float(g(row, ["k","K","head_height"]) or 0.0)
         pre_s = float(g(row, ["s","S","across_flats"]) or 0.0)
