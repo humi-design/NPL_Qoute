@@ -360,8 +360,14 @@ with tabs[0]:
     uploaded = st.file_uploader("Upload items file", type=["csv","xlsx"])
     sample = st.button("Download sample file")
     if sample:
-        sample_df = pd.DataFrame({"Item":["DIN 933 M8x20","DIN 934 M10","DIN 935 M30"], "Qty":[100,200,50], "Material":["A2 Stainless (304)","Steel (C45 / EN8)","A2 Stainless (304)"]})
-        st.download_button("Download sample", bytes_to_excel_bytes({"sample":sample_df}), file_name="sample_items.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        sample_df = pd.DataFrame({
+            "Item":["DIN 933 M8x20","DIN 934 M10","DIN 935 M30"],
+            "Qty":[100,200,50],
+            "Material":["A2 Stainless (304)","Steel (C45 / EN8)","A2 Stainless (304)"]
+        })
+        st.download_button("Download sample", bytes_to_excel_bytes({"sample":sample_df}), 
+                           file_name="sample_items.xlsx", 
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     if uploaded:
         try:
@@ -375,103 +381,137 @@ with tabs[0]:
 
         if df_items is not None:
             st.write("Preview (editable):")
-            # use stable editor
             df_items = st.data_editor(df_items, num_rows="dynamic")
-            # process each row: parse, try local DB, else GPT fallback (collect proposals)
-            proposals = []    # list of dicts with fetched dims and validation warnings
+
+            # ---------- helpers ----------
+            def safe_float(val, default=0.0):
+                try:
+                    if val is None or val=="" or pd.isna(val):
+                        return float(default)
+                    return float(val)
+                except:
+                    return float(default)
+
+            def safe_int(val, default=1):
+                try:
+                    if val is None or val=="" or pd.isna(val):
+                        return int(default)
+                    return int(val)
+                except:
+                    return int(default)
+
+            proposals = []
             unmatched = []
             matched_rows = []
+
             for idx, row in df_items.iterrows():
                 item_text = str(row.get("Item","")).strip()
                 if item_text == "":
                     continue
-                qty = int(row.get("Qty",1)) if not pd.isna(row.get("Qty",1)) else 1
+
+                qty = safe_int(row.get("Qty",1))
                 material = row.get("Material", None)
-                override_d = row.get("OverrideDiameter", None) if "OverrideDiameter" in df_items.columns else None
-                override_l = row.get("OverrideLength", None) if "OverrideLength" in df_items.columns else None
+                override_d = row.get("OverrideDiameter") if "OverrideDiameter" in df_items.columns else None
+                override_l = row.get("OverrideLength") if "OverrideLength" in df_items.columns else None
+
                 standard, size, length = parse_item_text(item_text)
-                if override_l and not pd.isna(override_l): length = float(override_l)
-                # DB-first lookup (Option A)
+                if override_l not in (None,"") and not pd.isna(override_l):
+                    length = safe_float(override_l)
+
+                # ---------- DB-first lookup ----------
                 found = None
                 if standard and size:
                     db = st.session_state.din_db
-                    # use robust column names
                     std_col = find_column(db, ["Standard","DIN","Std"])
                     size_col = find_column(db, ["Size","ThreadSize","S"])
                     if std_col and size_col:
-                        match = db[(db[std_col].astype(str).str.upper()==standard.upper()) & (db[size_col].astype(str).str.upper()==size.upper())]
+                        match = db[(db[std_col].astype(str).str.upper()==standard.upper()) & 
+                                   (db[size_col].astype(str).str.upper()==size.upper())]
                         if not match.empty:
-                            # map keys flexibly
                             row0 = match.iloc[0].to_dict()
-                            # try to read numeric fields using common names
                             def get_field(dct, names):
                                 for nm in names:
-                                    if nm in dct and pd.notna(dct[nm]):
-                                        return dct[nm]
-                                return None
-                            d_val = get_field(row0, ["d","D","nominal","d1"])
-                            dk = get_field(row0, ["dk","DK","head_diameter"])
-                            k = get_field(row0, ["k","K","head_height"])
-                            s = get_field(row0, ["s","S","across_flats"])
-                            pitch = get_field(row0, ["pitch","P"])
-                            head_type = row0.get("HeadType") if "HeadType" in row0 else row0.get("Head_Type", "")
-                            found = {"d":d_val, "dk":dk, "k":k, "s":s, "pitch":pitch, "HeadType":head_type}
+                                    if nm in dct and pd.notna(dct[nm]) and dct[nm]!="":
+                                        return safe_float(dct[nm], 0.0)
+                                return 0.0
+                            found = {
+                                "d": get_field(row0, ["d","D","nominal"]),
+                                "dk": get_field(row0, ["dk","DK","head_diameter"]),
+                                "k": get_field(row0, ["k","K","head_height"]),
+                                "s": get_field(row0, ["s","S","across_flats"]),
+                                "pitch": get_field(row0, ["pitch","P"]),
+                                "HeadType": row0.get("HeadType","")
+                            }
+
                 if found:
-                    d_final = float(override_d) if (override_d and not pd.isna(override_d)) else float(found.get("d") or 0)
-                    dk = float(found.get("dk") or 0)
-                    k = float(found.get("k") or 0)
-                    s = float(found.get("s") or 0)
-                    pitch = float(found.get("pitch") or 0)
-                    matched_rows.append({"Item":item_text,"Standard":standard,"Size":size,"Qty":qty,"Material":material,"d":d_final,"dk":dk,"k":k,"s":s,"pitch":pitch,"Length":length})
+                    d_final = safe_float(override_d, found["d"])
+                    matched_rows.append({
+                        "Item":item_text,"Standard":standard,"Size":size,"Qty":qty,"Material":material,
+                        "d":d_final,"dk":found["dk"],"k":found["k"],"s":found["s"],"pitch":found["pitch"],"Length":safe_float(length)
+                    })
                 else:
-                    # missing — attempt GPT fallback if enabled
+                    # ---------- GPT fallback ----------
                     if use_gpt_fallback and api_key:
                         st.info(f"Requesting GPT dims for {standard or 'UnknownStd'} {size or ''}")
                         data = fetch_dimensions_via_gpt(api_key, standard, size)
                         if data:
                             warnings = validate_dimensions_row(data)
-                            proposals.append({"Item":item_text,"Standard":standard,"Size":size,"Qty":qty,"Material":material,"d":data.get("d"),"dk":data.get("dk"),"k":data.get("k"),"s":data.get("s"),"pitch":data.get("pitch"),"notes":data.get("notes"),"warnings":"; ".join(warnings)})
+                            proposals.append({
+                                "Item":item_text,"Standard":standard,"Size":size,"Qty":qty,"Material":material,
+                                "d":safe_float(data.get("d")), "dk":safe_float(data.get("dk")),
+                                "k":safe_float(data.get("k")), "s":safe_float(data.get("s")),
+                                "pitch":safe_float(data.get("pitch")), "notes":data.get("notes",""),
+                                "warnings":"; ".join(warnings)
+                            })
                         else:
                             unmatched.append({"Item":item_text,"Reason":"GPT failed or returned nothing"})
                     else:
                         unmatched.append({"Item":item_text,"Reason":"Missing in local DB"})
-            # Show matched
+
+            # ---------- display ----------
             if matched_rows:
                 st.subheader("Matched items (from local DB)")
                 st.dataframe(pd.DataFrame(matched_rows))
 
-            # Show proposals
             if proposals:
                 st.subheader("GPT Proposals (review & bulk-add)")
                 prop_df = pd.DataFrame(proposals)
                 st.dataframe(prop_df)
                 st.markdown("Edit proposals below (if needed), then select rows to add to local DB.")
                 editable_props = st.data_editor(prop_df, num_rows="dynamic")
-                # ensure Add? column
                 if "Add?" not in editable_props.columns:
                     editable_props["Add?"] = True
                 if st.button("Add selected proposals to local DIN DB"):
                     added = 0
                     local = st.session_state.din_db.copy()
-                    std_col = "Standard"; size_col = "Size"
                     for _, prow in editable_props.iterrows():
                         if prow.get("Add?", True) in (True, "True", 1, "1"):
                             std = str(prow.get("Standard","")).strip()
                             sz = str(prow.get("Size","")).strip()
                             if std=="" or sz=="":
                                 continue
-                            exists = local[(local["Standard"].astype(str).str.upper()==std.upper()) & (local["Size"].astype(str).str.upper()==sz.upper())]
+                            exists = local[(local["Standard"].astype(str).str.upper()==std.upper()) & 
+                                           (local["Size"].astype(str).str.upper()==sz.upper())]
                             if exists.empty:
-                                newrow = {"Standard":std,"Size":sz,"HeadType":prow.get("HeadType",""), "d":prow.get("d"), "dk":prow.get("dk"), "k":prow.get("k"), "s":prow.get("s"), "pitch":prow.get("pitch"), "Notes":prow.get("notes","")}
+                                newrow = {
+                                    "Standard":std,"Size":sz,"HeadType":prow.get("HeadType",""), 
+                                    "d":safe_float(prow.get("d")),
+                                    "dk":safe_float(prow.get("dk")),
+                                    "k":safe_float(prow.get("k")),
+                                    "s":safe_float(prow.get("s")),
+                                    "pitch":safe_float(prow.get("pitch")),
+                                    "Notes":prow.get("notes","")
+                                }
                                 local = local.append(newrow, ignore_index=True)
                                 added += 1
                     st.session_state.din_db = local
                     st.session_state.din_db.to_csv(DIN_DB_CSV, index=False)
                     st.success(f"Added {added} proposals to local DIN DB.")
-            # Show unmatched
+
             if unmatched:
                 st.subheader("Unmatched items requiring manual action")
                 st.dataframe(pd.DataFrame(unmatched))
+
 
 # ---------- Single Calculator tab ----------
 with tabs[1]:
