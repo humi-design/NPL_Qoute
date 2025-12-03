@@ -514,6 +514,7 @@ with tabs[0]:
 
 
 # ---------- Single Calculator tab ----------
+# ---------- Single Calculator tab ----------
 with tabs[1]:
     st.header("Single Item Calculator (full costing, editable)")
     st.markdown("Select a standard from local DB or enter custom dims manually.")
@@ -524,39 +525,48 @@ with tabs[1]:
     size_col = find_column(din_options, ["Size","ThreadSize","S"])
     stds = sorted(din_options[std_col].dropna().astype(str).unique().tolist()) if std_col else []
     chosen = st.selectbox("Choose standard or Custom", ["Custom"] + stds)
+
+    # ---------- Safe numeric extraction ----------
+    def safe_float(val, default=0.0):
+        try:
+            if val is None or val=="" or pd.isna(val):
+                return float(default)
+            return float(val)
+        except:
+            return float(default)
+
+    def default_from_size(size_str, fallback=30.0):
+        if isinstance(size_str, str) and size_str.upper().startswith("M"):
+            try:
+                return float(size_str.upper().replace("M",""))
+            except:
+                return fallback
+        return fallback
+
     if chosen != "Custom" and std_col and size_col:
         sizes = sorted(din_options[din_options[std_col].astype(str)==chosen][size_col].dropna().astype(str).unique().tolist())
         chosen_size = st.selectbox("Size", sizes)
         row = din_options[(din_options[std_col].astype(str)==chosen) & (din_options[size_col].astype(str)==chosen_size)].iloc[0]
-        # flexible numeric extraction
+
         def g(r, names):
             for nm in names:
                 if nm in r and pd.notna(r[nm]):
                     return r[nm]
             return None
-        def safe_float(val, default=0.0):
-            try:
-                if val is None or val=="" or pd.isna(val):
-                    return float(default)
-                return float(val)
-            except:
-                return float(default)
-        # Determine a safe default first
-        if isinstance(chosen_size, str) and chosen_size.upper().startswith("M"):
-            try:
-                default_d = float(chosen_size.upper().replace("M",""))
-            except:
-                default_d = 30.0
-        else:
-            default_d = 30.0
-        pre_d = safe_float(g(row, ["d","D","nominal"]), default=default_d)
-        pre_dk = float(g(row, ["dk","DK","head_diameter"]) or 0.0)
-        pre_k = float(g(row, ["k","K","head_height"]) or 0.0)
-        pre_s = float(g(row, ["s","S","across_flats"]) or 0.0)
-    else:
-        pre_d = 30.0; pre_dk=0.0; pre_k=0.0; pre_s=0.0
-        chosen_size = "M30"
 
+        pre_d = safe_float(g(row, ["d","D","nominal"]), default=default_from_size(chosen_size))
+        pre_dk = safe_float(g(row, ["dk","DK","head_diameter"]), default=0.0)
+        pre_k = safe_float(g(row, ["k","K","head_height"]), default=0.0)
+        pre_s = safe_float(g(row, ["s","S","across_flats"]), default=0.0)
+    else:
+        # Custom or fallback values
+        chosen_size = "M30"
+        pre_d = 30.0
+        pre_dk = 0.0
+        pre_k = 0.0
+        pre_s = 0.0
+
+    # ---------- UI Inputs ----------
     col1,col2 = st.columns([2,1])
     with col1:
         stock_type = st.selectbox("Stock Type", ["Round Bar","Hex Bar","Square Bar","Tube","Sheet/Cold Formed"])
@@ -581,6 +591,7 @@ with tabs[1]:
             parting = st.number_input("Parting (mm)", value=compute_auto_parting(length))
         thread = st.text_input("Thread (e.g. M30)", value=chosen_size if chosen!="Custom" else "M30")
         qty = st.number_input("Quantity", value=100, min_value=1)
+
     with col2:
         material = st.selectbox("Material", st.session_state.materials_df["Material"].tolist())
         mrow = st.session_state.materials_df[st.session_state.materials_df["Material"]==material].iloc[0]
@@ -599,6 +610,7 @@ with tabs[1]:
         labour_add = st.number_input("Labour add-on (₹/pc)", value=0.1)
         scrap_pct = st.number_input("Scrap (%)", value=default_scrap)
 
+    # ---------- Calculations ----------
     total_length = length + parting
     vol_mm3 = volume_by_stock(stock_type, diameter, total_length, thickness=thickness, width=width)
     mass_kg = vol_mm3/1e9 * density
@@ -618,17 +630,32 @@ with tabs[1]:
     profit_amount = (direct_with_scrap + overhead) * (default_profit/100.0)
     final_price_inr = direct_with_scrap + overhead + profit_amount
 
+    # ---------- Display ----------
     st.subheader("Result")
     st.metric("Material kg/pc", f"{mass_kg:.6f}")
     st.metric("Final price / pc (INR)", f"₹ {final_price_inr:.4f}")
     st.metric("Final price / pc (USD)", f"$ {final_price_inr/usd_rate:.4f}")
     st.metric("Final price / pc (EUR)", f"€ {final_price_inr/eur_rate:.4f}")
     st.write(f"Total for {qty} pcs: ₹ {final_price_inr*qty:.2f} | $ {final_price_inr*qty/usd_rate:.2f} | € {final_price_inr*qty/eur_rate:.2f}")
+
     if st.button("Save this costing to history"):
-        new_row = {"Timestamp": datetime.datetime.now().isoformat(),"PartDesc":f"{stock_type} {thread}","Qty":int(qty),"Material":material,"Diameter(mm)":float(diameter),"Length(mm)":float(length),"Parting(mm)":float(parting),"UnitPrice_INR":float(final_price_inr),"Total_INR":float(final_price_inr*qty),"TargetPrice":"","Notes":""}
+        new_row = {
+            "Timestamp": datetime.datetime.now().isoformat(),
+            "PartDesc": f"{stock_type} {thread}",
+            "Qty": int(qty),
+            "Material": material,
+            "Diameter(mm)": float(diameter),
+            "Length(mm)": float(length),
+            "Parting(mm)": float(parting),
+            "UnitPrice_INR": float(final_price_inr),
+            "Total_INR": float(final_price_inr*qty),
+            "TargetPrice": "",
+            "Notes": ""
+        }
         st.session_state.cost_history = st.session_state.cost_history.append(new_row, ignore_index=True)
         st.session_state.cost_history.to_csv(HISTORY_CSV, index=False)
         st.success("Saved to history and persisted.")
+
 
 # ---------- Export helpers (global) ----------
 with st.sidebar:
