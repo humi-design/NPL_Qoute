@@ -293,6 +293,8 @@ def validate_dimensions_row(row):
 # ---------- Sidebar & settings ----------
 st.sidebar.header("Settings & OpenAI")
 api_key = st.sidebar.text_input("OpenAI API key (optional)", type="password")
+# Gemini key (optional) — used when provider == "Gemini"
+gemini_key = st.sidebar.text_input("Gemini API key (optional)", type="password")
 # Choose model provider
 model_provider = st.sidebar.selectbox(
     "AI Provider",
@@ -300,15 +302,8 @@ model_provider = st.sidebar.selectbox(
     index=0
 )
 
-# Gemini API key
-gemini_key = st.sidebar.text_input("Gemini API Key (optional)", type="password")
-
 # User-selectable model provider for dimension suggestion fallback
 model_provider = st.sidebar.selectbox("AI Provider", ["OpenAI", "Gemini"])
-
-# Gemini key (optional) — used when provider == "Gemini"
-gemini_key = st.sidebar.text_input("Gemini API key (optional)", type="password")
-
 use_gpt_fallback = st.sidebar.checkbox("Enable GPT fallback (Option A: DB first)", value=True if api_key or gemini_key else False)
 
 
