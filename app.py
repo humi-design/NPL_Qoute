@@ -534,7 +534,14 @@ with tabs[1]:
                 if nm in r and pd.notna(r[nm]):
                     return r[nm]
             return None
-        pre_d = float(g(row, ["d","D","nominal"]) or float(str(chosen_size).replace("M","") if isinstance(chosen_size,str) and chosen_size.upper().startswith("M") else 30.0))
+        def safe_float(val, default=0.0):
+            try:
+                if val is None or val=="" or pd.isna(val):
+                    return float(default)
+                return float(val)
+            except:
+                return float(default)
+        pre_d = safe_float(g(row, ["d","D","nominal"]), default=float(str(chosen_size).replace("M","") if isinstance(chosen_size,str) and chosen_size.upper().startswith("M") else 30.0))
         pre_dk = float(g(row, ["dk","DK","head_diameter"]) or 0.0)
         pre_k = float(g(row, ["k","K","head_height"]) or 0.0)
         pre_s = float(g(row, ["s","S","across_flats"]) or 0.0)
