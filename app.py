@@ -20,6 +20,13 @@ except Exception:
     openai = None
     OpenAI = None
 
+# Optional Gemini (Google) generative AI client
+try:
+    import google.generativeai as genai
+except Exception:
+    genai = None
+
+
 st.set_page_config(layout="wide", page_title="Fastener Costing App (DB-first + GPT fallback)")
 
 # ---------- Persistence ----------
@@ -154,47 +161,103 @@ Example:
 {{"standard":"DIN 933","size":"M8","head_type":"hex_bolt","d":8,"dk":13,"k":5.3,"s":13,"pitch":1.25,"notes":"common dims"}}
 """
 
-def fetch_dimensions_via_gpt(api_key, standard, size, model="gpt-4o-mini"):
+def fetch_dimensions_via_gpt(api_key, standard, size, provider="OpenAI", gemini_key=None, model="gpt-4o-mini"):
     """
-    Uses the new OpenAI client (OpenAI) to request JSON. Returns dict or None.
+    Uses the chosen AI provider to request JSON. Returns dict or None.
+    provider: "OpenAI" or "Gemini"
+    - For OpenAI: uses the existing OpenAI client (OpenAI).
+    - For Gemini: attempts to call google.generativeai with model 'gemini-1.5-flash'.
     """
-    if OpenAI is None:
-        raise RuntimeError("openai library not installed")
-    client = OpenAI(api_key=api_key)
     prompt = build_gpt_prompt(standard, size)
-    try:
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role":"system","content":"You are a precise dimensional assistant. Reply ONLY with JSON."},
-                {"role":"user","content":prompt}
-            ],
-            temperature=0.0,
-            max_tokens=400
-        )
-        # newer client returns choices list; extract safely
-        # text extraction supports both .message.content and legacy structure
-        text = None
-        try:
-            text = resp.choices[0].message.content.strip()
-        except Exception:
-            # fallback if different shape
-            text = str(resp.choices[0].message).strip()
-        if not text:
-            st.error("GPT returned empty response.")
+
+    # OpenAI path (unchanged behaviour)
+    if provider == "OpenAI":
+        if OpenAI is None:
+            st.error("openai library not installed")
             return None
-        json_text = re.sub(r"^```json|```$", "", text, flags=re.IGNORECASE).strip()
-        match = re.search(r'(\{.*\})', json_text, re.DOTALL)
-        if match: json_text = match.group(1)
-        data = json.loads(json_text)
-        for k in ["d","dk","k","s","pitch"]:
-            if k in data:
-                try: data[k] = float(data[k]) if data[k] is not None else None
-                except: data[k] = None
-        return data
-    except Exception as e:
-        st.error(f"GPT fetch error: {e}")
+        try:
+            client = OpenAI(api_key=api_key)
+            resp = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role":"system","content":"You are a precise dimensional assistant. Reply ONLY with JSON."},
+                    {"role":"user","content":prompt}
+                ],
+                temperature=0.0,
+                max_tokens=400
+            )
+            text = None
+            try:
+                text = resp.choices[0].message.content.strip()
+            except Exception:
+                text = str(resp.choices[0].message).strip()
+        except Exception as e:
+            st.error(f"OpenAI GPT fetch error: {e}")
+            return None
+
+    # Gemini path
+    elif provider == "Gemini":
+        if genai is None:
+            st.error("google.generativeai (Gemini) client not installed")
+            return None
+        if not gemini_key:
+            st.error("No Gemini API key provided.")
+            return None
+        try:
+            # configure client (best-effort)
+            try:
+                genai.configure(api_key=gemini_key)
+            except Exception:
+                pass
+
+            text = None
+            # Try the common call patterns for google.generativeai (best-effort):
+            # 1) genai.generate_text(...) returning .text
+            # 2) genai.GenerativeModel(...).generate(...) returning .text-like object
+            try:
+                resp = genai.generate_text(model="gemini-1.5-flash", prompt=prompt, temperature=0.0)
+                text = getattr(resp, "text", None) or str(resp)
+            except Exception:
+                try:
+                    model_obj = genai.GenerativeModel("gemini-1.5-flash")
+                    resp = model_obj.generate(prompt=prompt, temperature=0.0)
+                    text = getattr(resp, "text", None) or str(resp)
+                except Exception as e:
+                    st.error(f"Gemini fetch error: {e}")
+                    return None
+        except Exception as e:
+            st.error(f"Gemini fetch error: {e}")
+            return None
+
+    else:
+        st.error(f"Unknown provider: {provider}")
         return None
+
+    if not text:
+        st.error("AI returned empty response.")
+        return None
+
+    # strip markdown fences and extract JSON
+    json_text = re.sub(r"^```json|```$", "", text, flags=re.IGNORECASE).strip()
+    match = re.search(r'(\{.*\})', json_text, re.DOTALL)
+    if match:
+        json_text = match.group(1)
+
+    try:
+        data = json.loads(json_text)
+    except Exception as e:
+        st.error(f"Failed to parse JSON from AI response: {e}")
+        return None
+
+    for k in ["d","dk","k","s","pitch"]:
+        if k in data:
+            try:
+                data[k] = float(data[k]) if data[k] is not None else None
+            except:
+                data[k] = None
+
+    return data
+
 
 # ---------- validation routine ----------
 def validate_dimensions_row(row):
@@ -230,7 +293,15 @@ def validate_dimensions_row(row):
 # ---------- Sidebar & settings ----------
 st.sidebar.header("Settings & OpenAI")
 api_key = st.sidebar.text_input("OpenAI API key (optional)", type="password")
-use_gpt_fallback = st.sidebar.checkbox("Enable GPT fallback (Option A: DB first)", value=True if api_key else False)
+
+# User-selectable model provider for dimension suggestion fallback
+model_provider = st.sidebar.selectbox("AI Provider", ["OpenAI", "Gemini"])
+
+# Gemini key (optional) — used when provider == "Gemini"
+gemini_key = st.sidebar.text_input("Gemini API key (optional)", type="password")
+
+use_gpt_fallback = st.sidebar.checkbox("Enable GPT fallback (Option A: DB first)", value=True if api_key or gemini_key else False)
+
 
 # test API key button
 if st.sidebar.button("Test OpenAI API Key"):
@@ -453,7 +524,7 @@ with tabs[0]:
                     # ---------- GPT fallback ----------
                     if use_gpt_fallback and api_key:
                         st.info(f"Requesting GPT dims for {standard or 'UnknownStd'} {size or ''}")
-                        data = fetch_dimensions_via_gpt(api_key, standard, size)
+                        data = fetch_dimensions_via_gpt(api_key, standard, size, provider=model_provider, gemini_key=gemini_key)
                         if data:
                             warnings = validate_dimensions_row(data)
                             proposals.append({
