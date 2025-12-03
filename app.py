@@ -303,7 +303,7 @@ model_provider = st.sidebar.selectbox(
 )
 
 # User-selectable model provider for dimension suggestion fallback
-model_provider = st.sidebar.selectbox("AI Provider", ["OpenAI", "Gemini"])
+
 use_gpt_fallback = st.sidebar.checkbox("Enable GPT fallback (Option A: DB first)", value=True if api_key or gemini_key else False)
 
 
