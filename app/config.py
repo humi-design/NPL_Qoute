@@ -31,6 +31,7 @@ class Config:
     SESSION_COOKIE_SAMESITE = 'Lax'
     
     # CSRF Configuration
+    WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = None  # No time limit on CSRF tokens
     
     # Company Settings
@@ -63,6 +64,7 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
+    WTF_CSRF_ENABLED = True
 
 
 class TestingConfig(Config):
