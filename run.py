@@ -2,17 +2,15 @@
 """
 NPL Fasteners ERP - Run Script
 Flask application entry point
-
-For cPanel deployment:
-- Ensure application.wsgi calls this module
-- Set FLASK_ENV=production in .env
 """
 
 import os
 import sys
 
-# Add the current directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add current directory to Python path (for WSGI)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 
 # Load environment variables
 from dotenv import load_dotenv
