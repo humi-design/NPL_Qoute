@@ -513,19 +513,21 @@ CREATE TABLE IF NOT EXISTS attachments (
     entity_id INT NOT NULL,
     file_name VARCHAR(255) NOT NULL,
     original_name VARCHAR(255),
-    file_path VARCHAR(500) NOT NULL,
+    file_type VARCHAR(50),
     file_size INT,
-    mime_type VARCHAR(100),
+    file_path VARCHAR(500) NOT NULL,
+    is_primary BOOLEAN DEFAULT FALSE,
     uploaded_by INT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 ALTER TABLE attachments ADD COLUMN IF NOT EXISTS entity_type VARCHAR(30) NOT NULL AFTER id;
 ALTER TABLE attachments ADD COLUMN IF NOT EXISTS original_name VARCHAR(255) AFTER file_name;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS file_path VARCHAR(500) NOT NULL AFTER original_name;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS file_size INT AFTER file_path;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS mime_type VARCHAR(100) AFTER file_size;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_by INT AFTER mime_type;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS file_type VARCHAR(50) AFTER original_name;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS file_path VARCHAR(500) NOT NULL AFTER file_size;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS is_primary BOOLEAN DEFAULT FALSE AFTER file_path;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_by INT AFTER is_primary;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER uploaded_by;
 
 -- =============================================
 -- REVISION HISTORY TABLE
