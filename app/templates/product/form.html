@@ -15,6 +15,7 @@
 </div>
 
 <form method="POST" action="" enctype="multipart/form-data" id="productForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {{ form.hidden_tag() }}
     
     <div class="row">
