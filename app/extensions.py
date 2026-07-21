@@ -40,6 +40,19 @@ def create_app(config_name='default'):
         from app.models import User
         return User.query.get(int(user_id))
     
+    # Context processor for global variables
+    @app.context_processor
+    def inject_user():
+        from flask_login import current_user
+        from sqlalchemy import desc
+        notifications = []
+        if current_user.is_authenticated:
+            from app.models import Notification
+            notifications = Notification.query.filter_by(
+                user_id=current_user.id, is_read=False
+            ).order_by(desc(Notification.created_at)).limit(5).all()
+        return dict(notifications=notifications)
+    
     # Register blueprints
     from app.main import main_bp
     from app.auth import auth_bp

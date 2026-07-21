@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from app.main import main_bp
 from app.models import (
     db, Customer, RFQ, Product, Material, Quotation, QuotationItem,
-    ProductCostHistory, Notification, VendorRate, MaterialRate
+    ProductCostHistory, VendorRate, MaterialRate
 )
 
 
@@ -123,10 +123,8 @@ def dashboard():
         desc('total_qty')
     ).limit(5).all()
     
-    # Notifications
-    notifications = current_user.notifications.filter_by(
-        is_read=False
-    ).order_by(Notification.created_at.desc()).limit(5).all()
+    # Notifications - now handled by context processor
+    # (no need to query here, use the injected notifications variable)
     
     return render_template('main/dashboard.html',
                          page_title='Dashboard',
@@ -142,8 +140,7 @@ def dashboard():
                          recent_rfqs=recent_rfqs,
                          monthly_data=monthly_data,
                          top_customers=top_customers,
-                         top_products=top_products,
-                         notifications=notifications)
+                         top_products=top_products)
 
 
 @main_bp.route('/search')
