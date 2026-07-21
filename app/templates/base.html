@@ -726,7 +726,7 @@
                     <div class="dropdown-menu dropdown-menu-end">
                         <div class="dropdown-header">Notifications</div>
                         <div class="dropdown-body" style="max-height: 300px; overflow-y: auto;">
-                            {% for notification in current_user.notifications.order_by('created_at desc').limit(5).all() %}
+                            {% for notification in notifications %}
                             <a href="#" class="dropdown-item {% if not notification.is_read %}bg-light{% endif %}">
                                 <div class="fw-bold">{{ notification.title }}</div>
                                 <small class="text-muted">{{ notification.message }}</small>
