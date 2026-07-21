@@ -170,7 +170,7 @@ INSERT INTO processes (process_code, process_name, process_type, department, cos
 -- Products table
 CREATE TABLE IF NOT EXISTS products (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    product_code VARCHAR(50) NOT NULL UNIQUE,
+    internal_code VARCHAR(50) NOT NULL UNIQUE,
     product_name VARCHAR(200) NOT NULL,
     customer_part_number VARCHAR(100),
     drawing_number VARCHAR(100),
@@ -186,7 +186,7 @@ CREATE TABLE IF NOT EXISTS products (
     status VARCHAR(20) DEFAULT 'active',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_product_code (product_code),
+    INDEX idx_internal_code (internal_code),
     INDEX idx_product_name (product_name),
     INDEX idx_drawing_number (drawing_number),
     INDEX idx_customer_part (customer_part_number)
