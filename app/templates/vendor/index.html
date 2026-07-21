@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Vendors</h1></div><div class="page-actions"><a href="{{ url_for('vendor.new') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Vendor</a></div></div>
+<div class="card"><div class="card-body p-0"><table class="table table-hover mb-0"><thead><tr><th>Code</th><th>Vendor</th><th>Contact</th><th>Email</th><th>Lead Time</th><th>Actions</th></tr></thead><tbody>
+{% for v in vendors %}<tr onclick="window.location='{{ url_for('vendor.view', id=v.id) }}'" style="cursor:pointer"><td><strong>{{ v.vendor_code }}</strong></td><td>{{ v.vendor_name }}</td><td>{{ v.contact_person or '-' }}</td><td>{{ v.email or '-' }}</td><td>{{ v.lead_time or '-' }} days</td>
+<td><a href="{{ url_for('vendor.view', id=v.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td></tr>
+{% else %}<tr><td colspan="6" class="text-center text-muted py-4">No vendors found</td></tr>
+{% endfor %}</tbody></table></div></div>
+{% endblock %}

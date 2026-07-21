@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit User' if user else 'New User' }} - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('auth.users') }}">Users</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Edit User' if user else 'New User' }}</h1>
+        <p class="page-subtitle">{{ 'Update user details and permissions' if user else 'Create a new system user' }}</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" action="">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.username.label.text }}</label>
+                            {{ form.username(class="form-control") }}
+                            {% if form.username.errors %}
+                            <div class="text-danger small mt-1">{{ form.username.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.email.label.text }}</label>
+                            {{ form.email(class="form-control") }}
+                            {% if form.email.errors %}
+                            <div class="text-danger small mt-1">{{ form.email.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.full_name.label.text }}</label>
+                            {{ form.full_name(class="form-control") }}
+                            {% if form.full_name.errors %}
+                            <div class="text-danger small mt-1">{{ form.full_name.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.role.label.text }}</label>
+                            {{ form.role(class="form-select") }}
+                            {% if form.role.errors %}
+                            <div class="text-danger small mt-1">{{ form.role.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.password.label.text }}</label>
+                            {{ form.password(class="form-control", placeholder="Leave blank to keep current password") }}
+                            {% if form.password.errors %}
+                            <div class="text-danger small mt-1">{{ form.password.errors[0] }}</div>
+                            {% endif %}
+                            {% if not user %}
+                            <small class="text-muted">Default password: password123</small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 d-flex align-items-center">
+                            <div class="form-check mt-4">
+                                {{ form.is_active(class="form-check-input") }}
+                                <label class="form-check-label">{{ form.is_active.label.text }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('auth.users') }}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> {{ 'Update User' if user else 'Create User' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <span>Role Permissions</span>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6><span class="badge bg-primary">Admin</span></h6>
+                    <small class="text-muted">Full access to all modules including user management and settings</small>
+                </div>
+                <div class="mb-3">
+                    <h6><span class="badge bg-success">Sales</span></h6>
+                    <small class="text-muted">Create quotations, manage customers and RFQs</small>
+                </div>
+                <div class="mb-3">
+                    <h6><span class="badge bg-info">Production</span></h6>
+                    <small class="text-muted">Manage products, processes, machines and materials</small>
+                </div>
+                <div class="mb-3">
+                    <h6><span class="badge bg-warning">Accounts</span></h6>
+                    <small class="text-muted">View quotations and generate reports</small>
+                </div>
+                <div>
+                    <h6><span class="badge bg-secondary">Read Only</span></h6>
+                    <small class="text-muted">View-only access to all modules</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

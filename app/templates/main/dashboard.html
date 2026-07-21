@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="#">Dashboard</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Welcome back, {{ current_user.full_name }}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('quotation.new') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Quotation
+        </a>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <i class="bi bi-file-earmark-bar-graph"></i>
+            </div>
+            <div class="stat-info">
+                <h4>{{ todays_quotations }}</h4>
+                <p>Today's Quotations</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon orange">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div class="stat-info">
+                <h4>{{ pending_rfqs }}</h4>
+                <p>Pending RFQs</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="stat-info">
+                <h4>{{ won_quotations }}</h4>
+                <p>Won This Month</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon red">
+                <i class="bi bi-x-circle"></i>
+            </div>
+            <div class="stat-info">
+                <h4>{{ lost_quotations }}</h4>
+                <p>Lost This Month</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon cyan">
+                <i class="bi bi-currency-rupee"></i>
+            </div>
+            <div class="stat-info">
+                <h4>₹ {{ "{:,.0f}".format(monthly_sales) }}</h4>
+                <p>Monthly Sales</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <i class="bi bi-percent"></i>
+            </div>
+            <div class="stat-info">
+                <h4>{{ "%.1f"|format(avg_margin) }}%</h4>
+                <p>Average Margin</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <i class="bi bi-box"></i>
+            </div>
+            <div class="stat-info">
+                <h4>₹ {{ "{:,.0f}".format(material_cost) }}</h4>
+                <p>Material Cost</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <i class="bi bi-graph-up"></i>
+            </div>
+            <div class="stat-info">
+                <h4>{{ won_quotations + lost_quotations }}</h4>
+                <p>Total Responses</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts and Tables -->
+<div class="row g-4">
+    <!-- Quotation Trends Chart -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Quotation Trends (Last 6 Months)</span>
+            </div>
+            <div class="card-body">
+                <canvas id="quotationChart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <span>Quick Actions</span>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('quotation.new') }}" class="quick-action">
+                        <i class="bi bi-file-earmark-plus"></i>
+                        <span>Create New Quotation</span>
+                    </a>
+                    <a href="{{ url_for('rfq.new') }}" class="quick-action">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Add New RFQ</span>
+                    </a>
+                    <a href="{{ url_for('customer.new') }}" class="quick-action">
+                        <i class="bi bi-person-plus"></i>
+                        <span>Add New Customer</span>
+                    </a>
+                    <a href="{{ url_for('product.new') }}" class="quick-action">
+                        <i class="bi bi-box-seam"></i>
+                        <span>Add New Product</span>
+                    </a>
+                    <a href="{{ url_for('main.calculator') }}" class="quick-action">
+                        <i class="bi bi-calculator"></i>
+                        <span>Material Calculator</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Data -->
+<div class="row g-4 mt-2">
+    <!-- Recent Quotations -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Recent Quotations</span>
+                <a href="{{ url_for('quotation.index') }}" class="btn btn-sm btn-link">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Quote #</th>
+                                <th>Customer</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for quote in recent_quotations %}
+                            <tr style="cursor: pointer;" onclick="window.location='{{ url_for('quotation.view', id=quote.id) }}'">
+                                <td>
+                                    <strong>{{ quote.quotation_number }}</strong>
+                                    {% if quote.is_revision %}
+                                    <span class="badge bg-info ms-1">{{ quote.quotation_version }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ quote.customer.company_name if quote.customer else '-' }}</td>
+                                <td>₹ {{ "{:,.2f}".format(quote.total_amount) }}</td>
+                                <td>
+                                    <span class="badge-status badge-{{ quote.status }}">
+                                        {{ quote.status|title }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">No quotations yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent RFQs -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Recent RFQs</span>
+                <a href="{{ url_for('rfq.index') }}" class="btn btn-sm btn-link">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>RFQ #</th>
+                                <th>Customer</th>
+                                <th>Subject</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rfq in recent_rfqs %}
+                            <tr style="cursor: pointer;" onclick="window.location='{{ url_for('rfq.view', id=rfq.id) }}'">
+                                <td><strong>{{ rfq.rfq_number }}</strong></td>
+                                <td>{{ rfq.customer.company_name if rfq.customer else '-' }}</td>
+                                <td>{{ rfq.subject or '-' }}</td>
+                                <td>
+                                    <span class="badge-status badge-{{ rfq.status }}">
+                                        {{ rfq.status|replace('_', ' ')|title }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">No RFQs yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Products -->
+<div class="row g-4 mt-2">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Recent Products</span>
+                <a href="{{ url_for('product.index') }}" class="btn btn-sm btn-link">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Product Name</th>
+                                <th>Material</th>
+                                <th>Drawing #</th>
+                                <th>Revision</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in recent_products %}
+                            <tr style="cursor: pointer;" onclick="window.location='{{ url_for('product.view', id=product.id) }}'">
+                                <td><strong>{{ product.internal_code }}</strong></td>
+                                <td>{{ product.product_name }}</td>
+                                <td>{{ product.material or '-' }}</td>
+                                <td>{{ product.drawing_number or '-' }}</td>
+                                <td>{{ product.revision }}</td>
+                                <td>
+                                    <span class="badge-status badge-{{ product.status }}">
+                                        {{ product.status|title }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">No products yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Quotation Trends Chart
+    const ctx = document.getElementById('quotationChart');
+    if (ctx) {
+        const monthlyData = {{ monthly_data|tojson }};
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: monthlyData.map(d => d.month),
+                datasets: [
+                    {
+                        label: 'Won',
+                        data: monthlyData.map(d => d.won),
+                        backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                        borderColor: 'rgba(34, 197, 94, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Lost',
+                        data: monthlyData.map(d => d.lost),
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

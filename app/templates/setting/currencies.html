@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Currencies</h1></div><div class="page-actions"><a href="{{ url_for('setting.new_currency') }}" class="btn btn-primary"><i class="bi bi-plus"></i> Add</a></div></div>
+<div class="card"><div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Code</th><th>Name</th><th>Symbol</th><th>Rate</th><th>Base</th></tr></thead><tbody>
+{% for c in currencies %}<tr><td><strong>{{ c.currency_code }}</strong></td><td>{{ c.currency_name }}</td><td>{{ c.symbol }}</td>
+<td>{{ c.exchange_rate }}</td><td>{% if c.is_base %}<span class="badge bg-primary">Base</span>{% endif %}</td></tr>
+{% endfor %}</tbody></table></div></div>
+{% endblock %}

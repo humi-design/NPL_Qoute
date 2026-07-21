@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Edit Item</h1></div></div>
+<form method="POST">
+<div class="card"><div class="card-body">
+<div class="row mb-3">
+<div class="col-md-6"><label class="form-label">Description</label><input type="text" name="part_description" class="form-control" value="{{ item.part_description or '' }}"></div>
+<div class="col-md-6"><label class="form-label">Material</label><input type="text" name="material" class="form-control" value="{{ item.material or '' }}"></div>
+</div>
+<div class="row mb-3">
+<div class="col-md-3"><label class="form-label">Qty 1</label><input type="number" name="quantity_1" class="form-control" value="{{ item.quantity_1 or 0 }}"></div>
+<div class="col-md-3"><label class="form-label">Price 1</label><input type="number" name="unit_price_1" class="form-control" step="0.01" value="{{ item.unit_price_1 or 0 }}"></div>
+<div class="col-md-3"><label class="form-label">Qty 2</label><input type="number" name="quantity_2" class="form-control" value="{{ item.quantity_2 or '' }}"></div>
+<div class="col-md-3"><label class="form-label">Price 2</label><input type="number" name="unit_price_2" class="form-control" step="0.01" value="{{ item.unit_price_2 or '' }}"></div>
+</div>
+</div></div>
+<div class="d-flex justify-content-between">
+<a href="{{ url_for('quotation.view', id=item.quotation_id) }}" class="btn btn-outline-secondary">Cancel</a>
+<button type="submit" class="btn btn-primary">Update Item</button>
+</div>
+</form>
+{% endblock %}

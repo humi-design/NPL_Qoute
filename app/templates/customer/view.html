@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}{{ customer.company_name }} - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('customer.index') }}">Customers</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="d-flex align-items-center gap-3">
+            <div>
+                <h1 class="page-title mb-0">{{ customer.company_name }}</h1>
+                <p class="page-subtitle mb-0">{{ customer.customer_code }}</p>
+            </div>
+            {% if not customer.is_active %}
+            <span class="badge-status badge-inactive">Inactive</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('customer.edit', id=customer.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+        <a href="{{ url_for('quotation.new') }}?customer={{ customer.id }}" class="btn btn-primary">
+            <i class="bi bi-file-earmark-plus"></i> New Quotation
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column -->
+    <div class="col-lg-8">
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-4" id="customerTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button">
+                    Details
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="quotations-tab" data-bs-toggle="tab" data-bs-target="#quotations" type="button">
+                    Quotations ({{ quotations|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="attachments-tab" data-bs-toggle="tab" data-bs-target="#attachments" type="button">
+                    Attachments ({{ attachments|length }})
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="customerTabsContent">
+            <!-- Details Tab -->
+            <div class="tab-pane fade show active" id="details" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <span>Contact Information</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="text-muted small">Contact Person</label>
+                                    <div class="fw-medium">{{ customer.contact_person or '-' }}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="text-muted small">Email</label>
+                                    <div class="fw-medium">
+                                        {% if customer.email %}
+                                        <a href="mailto:{{ customer.email }}">{{ customer.email }}</a>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="text-muted small">Phone</label>
+                                    <div class="fw-medium">{{ customer.phone or '-' }}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="text-muted small">Mobile</label>
+                                    <div class="fw-medium">{{ customer.mobile or '-' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <span>Business Information</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="text-muted small">GST/VAT</label>
+                                    <div class="fw-medium">{{ customer.gst_vat or '-' }}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="text-muted small">Country</label>
+                                    <div class="fw-medium">{{ customer.country }}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="text-muted small">Currency</label>
+                                    <div class="fw-medium">{{ customer.currency }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Terms -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <span>Terms & Conditions</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="text-muted small">Payment Terms</label>
+                                <div class="fw-medium">{{ customer.payment_terms or '-' }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-muted small">Incoterms</label>
+                                <div class="fw-medium">{{ customer.incoterms or '-' }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-muted small">Shipping Terms</label>
+                                <div class="fw-medium">{{ customer.shipping_terms or '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Addresses -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <span>Addresses</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="text-muted small">Billing Address</label>
+                                <div class="fw-medium">{{ customer.billing_address or '-' }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-muted small">Shipping Address</label>
+                                <div class="fw-medium">{{ customer.shipping_address or '-' }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-muted small">Delivery Address</label>
+                                <div class="fw-medium">{{ customer.delivery_address or '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if customer.notes %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <span>Notes</span>
+                    </div>
+                    <div class="card-body">
+                        {{ customer.notes }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Quotations Tab -->
+            <div class="tab-pane fade" id="quotations" role="tabpanel">
+                <div class="card">
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Quote #</th>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for quote in quotations %}
+                                <tr style="cursor: pointer;" onclick="window.location='{{ url_for('quotation.view', id=quote.id) }}'">
+                                    <td>
+                                        <strong>{{ quote.quotation_number }}</strong>
+                                        {% if quote.is_revision %}
+                                        <span class="badge bg-info ms-1">{{ quote.quotation_version }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ quote.quotation_date.strftime('%d %b %Y') }}</td>
+                                    <td>₹ {{ "{:,.2f}".format(quote.total_amount) }}</td>
+                                    <td>
+                                        <span class="badge-status badge-{{ quote.status }}">{{ quote.status|title }}</span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('quotation.view', id=quote.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        No quotations yet
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Attachments Tab -->
+            <div class="tab-pane fade" id="attachments" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        {% if attachments %}
+                        <div class="list-group">
+                            {% for attachment in attachments %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center gap-3">
+                                    <i class="bi bi-file-earmark" style="font-size: 1.5rem;"></i>
+                                    <div>
+                                        <div class="fw-medium">{{ attachment.original_name }}</div>
+                                        <small class="text-muted">{{ (attachment.file_size / 1024)|round(1) }} KB</small>
+                                    </div>
+                                </div>
+                                <a href="#" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-paperclip" style="font-size: 2rem;"></i>
+                            <p class="mt-2">No attachments</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column - Stats -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <span>Statistics</span>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-muted">Total Quotations</span>
+                    <strong>{{ customer.quotations.count() }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-muted">Won Quotations</span>
+                    <strong class="text-success">{{ customer.quotations.filter_by(status='won').count() }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-muted">Lost Quotations</span>
+                    <strong class="text-danger">{{ customer.quotations.filter_by(status='lost').count() }}</strong>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Total Business</span>
+                    <strong>₹ {{ "{:,.0f}".format(customer.quotations.filter_by(status='won').sum('total_amount') or 0) }}</strong>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <span>Quick Actions</span>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('quotation.new') }}?customer={{ customer.id }}" class="quick-action">
+                        <i class="bi bi-file-earmark-plus"></i>
+                        <span>Create Quotation</span>
+                    </a>
+                    <a href="{{ url_for('rfq.new') }}?customer={{ customer.id }}" class="quick-action">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Create RFQ</span>
+                    </a>
+                    <a href="mailto:{{ customer.email }}" class="quick-action">
+                        <i class="bi bi-envelope"></i>
+                        <span>Send Email</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <span>Created</span>
+            </div>
+            <div class="card-body">
+                <div class="text-muted small">
+                    <div>Created: {{ customer.created_at.strftime('%d %b %Y %H:%M') }}</div>
+                    <div>Updated: {{ customer.updated_at.strftime('%d %b %Y %H:%M') }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Reports</h1></div></div>
+<div class="row">
+<div class="col-md-4 mb-4"><a href="{{ url_for('report.quotations') }}" class="text-decoration-none">
+<div class="card h-100"><div class="card-body text-center"><i class="bi bi-file-earmark-bar-graph" style="font-size: 3rem; color: var(--sidebar-active);"></i>
+<h5 class="mt-3">Quotation Report</h5><p class="text-muted small">View quotation history and status</p></div></div></a></div>
+<div class="col-md-4 mb-4"><a href="{{ url_for('report.customers') }}" class="text-decoration-none">
+<div class="card h-100"><div class="card-body text-center"><i class="bi bi-people" style="font-size: 3rem; color: var(--sidebar-active);"></i>
+<h5 class="mt-3">Customer Sales</h5><p class="text-muted small">Customer-wise sales analysis</p></div></div></a></div>
+<div class="col-md-4 mb-4"><a href="{{ url_for('report.products') }}" class="text-decoration-none">
+<div class="card h-100"><div class="card-body text-center"><i class="bi bi-box-seam" style="font-size: 3rem; color: var(--sidebar-active);"></i>
+<h5 class="mt-3">Product Performance</h5><p class="text-muted small">Top selling products</p></div></div></a></div>
+<div class="col-md-4 mb-4"><a href="{{ url_for('report.margin') }}" class="text-decoration-none">
+<div class="card h-100"><div class="card-body text-center"><i class="bi bi-percent" style="font-size: 3rem; color: var(--sidebar-active);"></i>
+<h5 class="mt-3">Margin Analysis</h5><p class="text-muted small">Profit margin breakdown</p></div></div></a></div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">{{ 'Edit' if process else 'New' }} Process</h1></div></div>
+<form method="POST">{{ form.hidden_tag() }}
+<div class="card"><div class="card-body">
+<div class="row mb-3">
+<div class="col-md-4">{{ form.process_code.label(class="form-label") }}{{ form.process_code(class="form-control") }}</div>
+<div class="col-md-8">{{ form.process_name.label(class="form-label") }}{{ form.process_name(class="form-control") }}</div>
+</div>
+<div class="row mb-3">
+<div class="col-md-4">{{ form.process_type.label(class="form-label") }}{{ form.process_type(class="form-select") }}</div>
+<div class="col-md-4">{{ form.cost_type.label(class="form-label") }}{{ form.cost_type(class="form-select") }}</div>
+<div class="col-md-4">{{ form.cost_value.label(class="form-label") }}{{ form.cost_value(class="form-control") }}</div>
+</div>
+<div class="row mb-3">
+<div class="col-md-6">{{ form.setup_time.label(class="form-label") }}{{ form.setup_time(class="form-control") }}</div>
+<div class="col-md-6">{{ form.cycle_time.label(class="form-label") }}{{ form.cycle_time(class="form-control") }}</div>
+</div>
+<div class="row mb-3">
+<div class="col-md-6">{{ form.department.label(class="form-label") }}{{ form.department(class="form-control") }}</div>
+<div class="col-md-6">{{ form.machine_id.label(class="form-label") }}{{ form.machine_id(class="form-select") }}</div>
+</div>
+<div class="mb-3">{{ form.description.label(class="form-label") }}{{ form.description(class="form-control", rows="2") }}</div>
+{{ form.is_active.label(class="form-label") }} {{ form.is_active() }} &nbsp; {{ form.is_custom.label(class="form-label") }} {{ form.is_custom() }}
+</div></div>
+<div class="d-flex justify-content-between">
+<a href="{{ url_for('process.index') }}" class="btn btn-outline-secondary">Cancel</a>
+<button type="submit" class="btn btn-primary">Save</button>
+</div>
+</form>
+{% endblock %}

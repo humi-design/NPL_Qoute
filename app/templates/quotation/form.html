@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">{{ 'Edit' if quotation else 'New' }} Quotation</h1></div></div>
+<form method="POST">{{ form.hidden_tag() }}
+<div class="row">
+<div class="col-lg-8">
+<div class="card mb-4"><div class="card-header"><span>Quotation Details</span></div><div class="card-body">
+<div class="row mb-3">
+<div class="col-md-4">{{ form.quotation_number.label(class="form-label") }}{{ form.quotation_number(class="form-control", readonly=quotation) }}</div>
+<div class="col-md-4">{{ form.customer_id.label(class="form-label") }}{{ form.customer_id(class="form-select") }}</div>
+<div class="col-md-4">{{ form.currency.label(class="form-label") }}{{ form.currency(class="form-select") }}</div>
+</div>
+<div class="row mb-3">
+<div class="col-md-4">{{ form.quotation_date.label(class="form-label") }}{{ form.quotation_date(class="form-control", type="date") }}</div>
+<div class="col-md-4">{{ form.valid_until.label(class="form-label") }}{{ form.valid_until(class="form-control", type="date") }}</div>
+<div class="col-md-4">{{ form.priority.label(class="form-label") }}{{ form.priority(class="form-select") }}</div>
+</div>
+<div class="row mb-3">
+<div class="col-md-6">{{ form.payment_terms.label(class="form-label") }}{{ form.payment_terms(class="form-control") }}</div>
+<div class="col-md-6">{{ form.delivery_terms.label(class="form-label") }}{{ form.delivery_terms(class="form-control") }}</div>
+</div>
+<div class="mb-3">{{ form.billing_address.label(class="form-label") }}{{ form.billing_address(class="form-control", rows="2") }}</div>
+<div class="mb-3">{{ form.shipping_address.label(class="form-label") }}{{ form.shipping_address(class="form-control", rows="2") }}</div>
+</div></div>
+<div class="card mb-4"><div class="card-header"><span>Terms & Conditions</span></div><div class="card-body">
+<div class="mb-3">{{ form.terms_conditions.label(class="form-label") }}{{ form.terms_conditions(class="form-control", rows="5") }}</div>
+<div class="row mb-3">
+<div class="col-md-4">{{ form.tax_percent.label(class="form-label") }}{{ form.tax_percent(class="form-control", step="0.01") }}</div>
+<div class="col-md-4">{{ form.warranty.label(class="form-label") }}{{ form.warranty(class="form-control") }}</div>
+</div>
+</div></div>
+</div>
+<div class="col-lg-4">
+<div class="card mb-4"><div class="card-header"><span>Internal Notes</span></div><div class="card-body">{{ form.internal_notes.label(class="form-label") }}{{ form.internal_notes(class="form-control", rows="4") }}</div></div>
+</div>
+</div>
+<div class="d-flex justify-content-between">
+<a href="{{ url_for('quotation.index') }}" class="btn btn-outline-secondary">Cancel</a>
+<button type="submit" class="btn btn-primary">{{ 'Update' if quotation else 'Create' }} Quotation</button>
+</div>
+</form>
+{% endblock %}

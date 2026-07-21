@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.product_name }} - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('product.index') }}">Products</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="d-flex align-items-center gap-3">
+            <div>
+                <h1 class="page-title mb-0">{{ product.product_name }}</h1>
+                <p class="page-subtitle mb-0">{{ product.internal_code }} | Revision {{ product.revision }}</p>
+            </div>
+            {% if product.status != 'active' %}
+            <span class="badge-status badge-{{ product.status }}">{{ product.status|title }}</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('product.duplicate', id=product.id) }}" class="btn btn-outline-info">
+            <i class="bi bi-copy"></i> Duplicate
+        </a>
+        <a href="{{ url_for('product.edit', id=product.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column -->
+    <div class="col-lg-8">
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-4" id="productTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button">
+                    Details
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="drawings-tab" data-bs-toggle="tab" data-bs-target="#drawings" type="button">
+                    Drawings ({{ attachments|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button">
+                    Cost History
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="productTabsContent">
+            <!-- Details Tab -->
+            <div class="tab-pane fade show active" id="details" role="tabpanel">
+                <!-- Basic Info -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <span>Basic Information</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="text-muted small">Internal Code</label>
+                                <div class="fw-medium">{{ product.internal_code }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-muted small">Customer Part Number</label>
+                                <div class="fw-medium">{{ product.customer_part_number or '-' }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-muted small">Drawing Number</label>
+                                <div class="fw-medium">{{ product.drawing_number or '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Technical Specs -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <span>Technical Specifications</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label class="text-muted small">Material</label>
+                                <div class="fw-medium">{{ product.material or '-' }}</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="text-muted small">Weight</label>
+                                <div class="fw-medium">{{ product.weight }} g</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="text-muted small">Standard</label>
+                                <div class="fw-medium">
+                                    {% if product.standard %}
+                                    {{ product.standard }} {{ product.standard_number or '' }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="text-muted small">Thread</label>
+                                <div class="fw-medium">{{ product.thread or '-' }}</div>
+                            </div>
+                        </div>
+                        
+                        {% if product.dimensions %}
+                        <hr>
+                        <div class="row">
+                            <div class="col-12">
+                                <label class="text-muted small">Additional Dimensions</label>
+                                <pre class="mb-0"><code>{{ product.dimensions }}</code></pre>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Manufacturing Route -->
+                {% if product.manufacturing_template %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <span>Manufacturing Route</span>
+                    </div>
+                    <div class="card-body">
+                        <h6>{{ product.manufacturing_template.template_name }}</h6>
+                        <p class="text-muted">{{ product.manufacturing_template.description or 'No description' }}</p>
+                        <div class="list-group">
+                            {% for step in product.manufacturing_template.steps.order_by('sequence').all() %}
+                            <div class="list-group-item d-flex align-items-center">
+                                <span class="badge bg-secondary me-2">{{ step.sequence }}</span>
+                                <span>{{ step.process.process_name if step.process else 'Unknown Process' }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Description -->
+                {% if product.description %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <span>Description</span>
+                    </div>
+                    <div class="card-body">
+                        {{ product.description }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Drawings Tab -->
+            <div class="tab-pane fade" id="drawings" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        {% if attachments %}
+                        <div class="row">
+                            {% for attachment in attachments %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card">
+                                    <div class="card-body text-center">
+                                        {% if attachment.file_type in ['png', 'jpg', 'jpeg', 'webp', 'bmp'] %}
+                                        <img src="{{ url_for('static', filename=attachment.file_path.replace('uploads/', '')) }}" 
+                                             class="img-fluid mb-2" style="max-height: 200px;">
+                                        {% else %}
+                                        <i class="bi bi-file-earmark" style="font-size: 4rem; color: #6b7280;"></i>
+                                        {% endif %}
+                                        <div class="fw-medium">{{ attachment.original_name }}</div>
+                                        <small class="text-muted">{{ attachment.file_type|upper }}</small>
+                                        <div class="mt-2">
+                                            <a href="#" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-paperclip" style="font-size: 3rem;"></i>
+                            <p class="mt-2">No drawings or attachments</p>
+                            <a href="{{ url_for('product.edit', id=product.id) }}" class="btn btn-primary btn-sm">
+                                Add Attachments
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cost History Tab -->
+            <div class="tab-pane fade" id="history" role="tabpanel">
+                <div class="card">
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Quantity</th>
+                                    <th>Material Cost</th>
+                                    <th>Machining Cost</th>
+                                    <th>Total Cost</th>
+                                    <th>Selling Price</th>
+                                    <th>Margin %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in cost_history %}
+                                <tr>
+                                    <td>{{ record.recorded_at.strftime('%d %b %Y') }}</td>
+                                    <td>{{ record.quantity or '-' }}</td>
+                                    <td>₹ {{ "{:,.2f}".format(record.raw_material_cost) }}</td>
+                                    <td>₹ {{ "{:,.2f}".format(record.machining_cost) }}</td>
+                                    <td>₹ {{ "{:,.2f}".format(record.total_cost) }}</td>
+                                    <td>₹ {{ "{:,.2f}".format(record.selling_price) }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if record.margin_percent > 20 else 'warning' }}">
+                                            {{ "{:.1f}".format(record.margin_percent) }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        No cost history recorded
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column - Stats -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <span>Quick Stats</span>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-muted">Quotations</span>
+                    <strong>{{ quotation_count }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-muted">Revision</span>
+                    <strong>{{ product.revision }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-muted">Status</span>
+                    <span class="badge-status badge-{{ product.status }}">{{ product.status|title }}</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Last Updated</span>
+                    <strong>{{ product.updated_at.strftime('%d %b %Y') }}</strong>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <span>Quick Actions</span>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('quotation.new') }}?product={{ product.id }}" class="quick-action">
+                        <i class="bi bi-file-earmark-plus"></i>
+                        <span>Create Quotation</span>
+                    </a>
+                    <a href="{{ url_for('product.edit', id=product.id) }}" class="quick-action">
+                        <i class="bi bi-pencil"></i>
+                        <span>Edit Product</span>
+                    </a>
+                    <a href="{{ url_for('product.duplicate', id=product.id) }}" class="quick-action">
+                        <i class="bi bi-copy"></i>
+                        <span>Duplicate Product</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <span>Created</span>
+            </div>
+            <div class="card-body">
+                <div class="text-muted small">
+                    <div>Created: {{ product.created_at.strftime('%d %b %Y %H:%M') }}</div>
+                    <div>Updated: {{ product.updated_at.strftime('%d %b %Y %H:%M') }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

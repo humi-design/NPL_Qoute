@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+<div><h1 class="page-title">{{ quotation.quotation_number }}{% if quotation.is_revision %}<span class="badge bg-info ms-2">{{ quotation.quotation_version }}</span>{% endif %}</h1>
+<p class="page-subtitle">{{ quotation.customer.company_name if quotation.customer else '' }}</p></div>
+<div class="page-actions">
+{% if quotation.status == 'draft' %}
+<a href="{{ url_for('quotation.change_status', id=quotation.id, status='sent') }}" class="btn btn-success"><i class="bi bi-send"></i> Mark as Sent</a>
+{% endif %}
+<a href="{{ url_for('quotation.pdf', id=quotation.id) }}" class="btn btn-outline-primary"><i class="bi bi-file-pdf"></i> PDF</a>
+<a href="{{ url_for('quotation.edit', id=quotation.id) }}" class="btn btn-outline-primary"><i class="bi bi-pencil"></i> Edit</a>
+<a href="{{ url_for('quotation.revise', id=quotation.id) }}" class="btn btn-outline-info"><i class="bi bi-files"></i> Revise</a>
+</div>
+</div>
+<div class="row">
+<div class="col-lg-8">
+<div class="card mb-4"><div class="card-header d-flex justify-content-between"><span>Quotation Items</span>
+<a href="#" data-bs-toggle="modal" data-bs-target="#addItemModal" class="btn btn-sm btn-primary"><i class="bi bi-plus"></i> Add Item</a></div>
+<div class="card-body p-0"><table class="table mb-0"><thead><tr><th>#</th><th>Description</th><th>Material</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>
+{% for item in items %}<tr><td>{{ loop.index }}</td><td>{{ item.part_description or '-' }}</td><td>{{ item.material or '-' }}</td>
+<td>{{ item.quantity_1 }}</td><td>₹ {{ "{:,.2f}".format(item.unit_price_1 or 0) }}</td><td>₹ {{ "{:,.2f}".format((item.quantity_1 or 0) * (item.unit_price_1 or 0)) }}</td></tr>
+{% else %}<tr><td colspan="6" class="text-center">No items</td></tr>
+{% endfor %}</tbody>
+<tfoot><tr><td colspan="4"></td><td class="text-end"><strong>Subtotal:</strong></td><td>₹ {{ "{:,.2f}".format(subtotal) }}</td></tr>
+<tr><td colspan="4"></td><td class="text-end">Tax ({{ quotation.tax_percent }}%):</td><td>₹ {{ "{:,.2f}".format(tax_amount) }}</td></tr>
+<tr><td colspan="4"></td><td class="text-end"><strong>Total:</strong></td><td><strong>₹ {{ "{:,.2f}".format(total) }}</strong></td></tr></tfoot></table></div></div>
+</div>
+<div class="col-lg-4">
+<div class="card mb-4"><div class="card-header"><span>Details</span></div><div class="card-body">
+<div class="mb-2"><label class="text-muted small">Status</label><div><span class="badge-status badge-{{ quotation.status }}">{{ quotation.status|title }}</span></div></div>
+<div class="mb-2"><label class="text-muted small">Date</label><div>{{ quotation.quotation_date.strftime('%d %b %Y') }}</div></div>
+<div class="mb-2"><label class="text-muted small">Valid Until</label><div>{{ quotation.valid_until.strftime('%d %b %Y') if quotation.valid_until else '-' }}</div></div>
+<div class="mb-2"><label class="text-muted small">Currency</label><div>{{ quotation.currency }}</div></div>
+</div></div>
+</div>
+</div>
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+<div class="modal-header"><h5 class="modal-title">Add Item</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+<form method="POST" action="{{ url_for('quotation.add_item', id=quotation.id) }}">
+<div class="modal-body">
+<div class="mb-3"><label class="form-label">Description</label><input type="text" name="part_description" class="form-control"></div>
+<div class="row mb-3"><div class="col-md-6"><label class="form-label">Material</label><input type="text" name="material" class="form-control"></div>
+<div class="col-md-6"><label class="form-label">Quantity</label><input type="number" name="quantity_1" class="form-control" value="100"></div></div>
+<div class="mb-3"><label class="form-label">Unit Price (₹)</label><input type="number" name="unit_price_1" class="form-control" step="0.01"></div>
+</div>
+<div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Add Item</button></div>
+</form></div></div></div>
+{% endblock %}

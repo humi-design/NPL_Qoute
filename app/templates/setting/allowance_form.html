@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">New Allowance</h1></div></div>
+<form method="POST">{{ form.hidden_tag() }}
+<div class="card"><div class="card-body">
+<div class="row mb-3">
+<div class="col-md-4">{{ form.allowance_code.label(class="form-label") }}{{ form.allowance_code(class="form-control") }}</div>
+<div class="col-md-8">{{ form.allowance_name.label(class="form-label") }}{{ form.allowance_name(class="form-control") }}</div>
+</div>
+<div class="row mb-3">
+<div class="col-md-4">{{ form.allowance_type.label(class="form-label") }}{{ form.allowance_type(class="form-select") }}</div>
+<div class="col-md-4">{{ form.value.label(class="form-label") }}{{ form.value(class="form-control", step="0.01") }}</div>
+</div>
+{{ form.is_active.label(class="form-label") }} {{ form.is_active() }}
+</div></div>
+<div class="d-flex justify-content-between">
+<a href="{{ url_for('setting.allowances') }}" class="btn btn-outline-secondary">Cancel</a>
+<button type="submit" class="btn btn-primary">Save</button>
+</div>
+</form>
+{% endblock %}

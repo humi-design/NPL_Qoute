@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit Product' if product else 'New Product' }} - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('product.index') }}">Products</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Edit Product' if product else 'New Product' }}</h1>
+        <p class="page-subtitle">{{ 'Update product details' if product else 'Create a new product in the library' }}</p>
+    </div>
+</div>
+
+<form method="POST" action="" enctype="multipart/form-data" id="productForm">
+    {{ form.hidden_tag() }}
+    
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Basic Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span>Basic Information</span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.internal_code.label.text }} *</label>
+                            {{ form.internal_code(class="form-control", readonly=product) }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.revision.label.text }}</label>
+                            {{ form.revision(class="form-control") }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.status.label.text }}</label>
+                            {{ form.status(class="form-select") }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.product_name.label.text }} *</label>
+                        {{ form.product_name(class="form-control") }}
+                        {% if form.product_name.errors %}
+                        <div class="text-danger small mt-1">{{ form.product_name.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.customer_part_number.label.text }}</label>
+                            {{ form.customer_part_number(class="form-control") }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.drawing_number.label.text }}</label>
+                            {{ form.drawing_number(class="form-control") }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Technical Specs -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span>Technical Specifications</span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.material.label.text }}</label>
+                            {{ form.material(class="form-control") }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.weight.label.text }} (grams)</label>
+                            {{ form.weight(class="form-control", step="0.01") }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.thread.label.text }}</label>
+                            {{ form.thread(class="form-control", placeholder="e.g., M10x1.5") }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.standard.label.text }} (DIN/ISO)</label>
+                            {{ form.standard(class="form-control", placeholder="e.g., DIN, ISO") }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.standard_number.label.text }}</label>
+                            {{ form.standard_number(class="form-control", placeholder="e.g., 933, 935") }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.dimensions.label.text }} (JSON)</label>
+                        {{ form.dimensions(class="form-control", rows="3", placeholder='{"diameter": 10, "length": 30, "af": 17}') }}
+                        <small class="text-muted">Store additional dimensions as JSON key-value pairs</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Manufacturing -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span>Manufacturing</span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.manufacturing_template_id.label.text }}</label>
+                        {{ form.manufacturing_template_id(class="form-select") }}
+                        <small class="text-muted">Select a predefined manufacturing route template</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Description -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span>Description</span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.description.label.text }}</label>
+                        {{ form.description(class="form-control", rows="4") }}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Attachments -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span>Drawings & Attachments</span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <input type="file" class="form-control" name="attachments" multiple 
+                               accept=".pdf,.png,.jpg,.jpeg,.webp,.bmp,.step,.stp,.iges,.igs,.dxf,.dwg,.zip">
+                        <small class="text-muted">
+                            Upload drawings and files (PDF, images, CAD files, ZIP archives)
+                        </small>
+                    </div>
+                    
+                    {% if attachments %}
+                    <div class="list-group">
+                        {% for attachment in attachments %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center gap-3">
+                                <i class="bi bi-file-earmark" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <div class="fw-medium">{{ attachment.original_name }}</div>
+                                    <small class="text-muted">
+                                        {{ attachment.file_type|upper }} - {{ (attachment.file_size / 1024)|round(1) }} KB
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="btn-group">
+                                <a href="#" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i></a>
+                                <a href="{{ url_for('product.delete_attachment', id=product.id, attach_id=attachment.id) }}" 
+                                   class="btn btn-sm btn-outline-danger" data-confirm="Delete this attachment?">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('product.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i> {{ 'Update Product' if product else 'Create Product' }}
+                </button>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span>Search Before Creating</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">Search existing products before creating new ones to avoid duplicates.</p>
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control" id="sidebarSearch" placeholder="Search products...">
+                        <button class="btn btn-outline-secondary" type="button" onclick="searchProducts()">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    <div id="searchResults" class="small"></div>
+                </div>
+            </div>
+            
+            {% if product %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span>Quick Stats</span>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Quotations</span>
+                        <strong>{{ quotation_count }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Created</span>
+                        <strong>{{ product.created_at.strftime('%d %b %Y') }}</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span>Similar Products</span>
+                </div>
+                <div class="card-body" id="similarProducts">
+                    <p class="text-muted small">Loading...</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('sidebarSearch');
+    let searchTimeout;
+    
+    searchInput?.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(searchProducts, 300);
+    });
+});
+
+function searchProducts() {
+    const query = document.getElementById('sidebarSearch').value;
+    const resultsDiv = document.getElementById('searchResults');
+    
+    if (query.length < 2) {
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    
+    fetch(`/products/api/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length === 0) {
+                resultsDiv.innerHTML = '<p class="text-muted small">No products found</p>';
+            } else {
+                resultsDiv.innerHTML = '<div class="list-group list-group-flush">' +
+                    data.slice(0, 5).map(p => `
+                        <a href="/products/${p.id}" class="list-group-item list-group-item-action py-2">
+                            <div class="fw-bold">${p.code}</div>
+                            <small>${p.name}</small>
+                        </a>
+                    `).join('') +
+                '</div>';
+            }
+        });
+}
+
+// Load similar products
+{% if product %}
+fetch(`/products/api/similar?id={{ product.id }}`)
+    .then(response => response.json())
+    .then(data => {
+        const container = document.getElementById('similarProducts');
+        if (data.length === 0) {
+            container.innerHTML = '<p class="text-muted small">No similar products found</p>';
+        } else {
+            container.innerHTML = '<div class="list-group list-group-flush">' +
+                data.map(p => `
+                    <a href="/products/${p.id}" class="list-group-item list-group-item-action py-2">
+                        <div class="d-flex justify-content-between">
+                            <strong>${p.code}</strong>
+                            <span class="badge bg-secondary">${p.similarity} matches</span>
+                        </div>
+                        <small>${p.name}</small>
+                    </a>
+                `).join('') +
+            '</div>';
+        }
+    });
+{% endif %}
+</script>
+{% endblock %}

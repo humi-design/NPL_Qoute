@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Quotations</h1></div><div class="page-actions"><a href="{{ url_for('quotation.new') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New Quotation</a></div></div>
+<div class="card">
+<div class="card-header"><form method="GET" class="row g-3"><div class="col-md-4"><input type="text" class="form-control" name="search" placeholder="Search..." value="{{ search }}"></div>
+<div class="col-md-3"><select name="status" class="form-select"><option value="">All Status</option>
+<option value="draft" {% if status=='draft' %}selected{% endif %}>Draft</option>
+<option value="sent" {% if status=='sent' %}selected{% endif %}>Sent</option>
+<option value="won" {% if status=='won' %}selected{% endif %}>Won</option>
+<option value="lost" {% if status=='lost' %}selected{% endif %}>Lost</option></select></div>
+<button type="submit" class="btn btn-primary">Filter</button></form></div>
+<div class="card-body p-0"><table class="table table-hover mb-0"><thead><tr><th>Quote #</th><th>Customer</th><th>Date</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+{% for q in quotations.items %}<tr onclick="window.location='{{ url_for('quotation.view', id=q.id) }}'" style="cursor:pointer"><td><strong>{{ q.quotation_number }}</strong>{% if q.is_revision %}<span class="badge bg-info ms-1">{{ q.quotation_version }}</span>{% endif %}</td>
+<td>{{ q.customer.company_name if q.customer else '-' }}</td><td>{{ q.quotation_date.strftime('%d %b %Y') }}</td><td>₹ {{ "{:,.2f}".format(q.total_amount) }}</td>
+<td><span class="badge-status badge-{{ q.status }}">{{ q.status|title }}</span></td>
+<td><a href="{{ url_for('quotation.view', id=q.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td></tr>
+{% else %}<tr><td colspan="6" class="text-center text-muted py-4">No quotations found</td></tr>
+{% endfor %}</tbody></table></div></div>
+{% endblock %}
