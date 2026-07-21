@@ -438,9 +438,6 @@ class Quotation(db.Model):
     # Relationships
     items = db.relationship('QuotationItem', backref='quotation', lazy='dynamic', cascade='all, delete-orphan')
     operations = db.relationship('QuotationOperation', backref='quotation', lazy='dynamic', cascade='all, delete-orphan')
-    revisions = db.relationship('Quotation', backref='parent_quotation', lazy='dynamic',
-                                primaryjoin="and_(Quotation.quotation_ref==Quotation.quotation_number, Quotation.id!=Quotation.id)",
-                                foreign_keys='Quotation.quotation_ref', viewonly=True)
     attachments = db.relationship('Attachment', backref='quotation', lazy='dynamic',
                                   primaryjoin="and_(Quotation.id==Attachment.entity_id, Attachment.entity_type=='quotation')",
                                   foreign_keys='Attachment.entity_id', viewonly=True)
