@@ -23,10 +23,18 @@ def create_app(config_name='default'):
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
-    csrf.init_app(app)
     bcrypt.init_app(app)
     migrate.init_app(app, db)
     cors.init_app(app)
+    
+    # Initialize CSRF (exempt API endpoints)
+    csrf.init_app(app)
+    
+    # Exempt API blueprint from CSRF
+    from flask_wtf.csrf import csrf_exempt
+    api_bp = app.blueprints.get('api')
+    if api_bp:
+        csrf.exempt(api_bp)
     
     # Login manager settings
     login_manager.login_view = 'auth.login'

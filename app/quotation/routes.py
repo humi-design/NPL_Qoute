@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, request, flash, jsonify, send_file
+from flask import render_template, redirect, url_for, request, flash, jsonify, send_file, current_app
 from flask_login import login_required
 from datetime import datetime, timedelta
 from sqlalchemy import func, desc
@@ -12,7 +12,6 @@ from app.utils import (
     generate_quotation_number, export_quotations_to_excel,
     generate_product_code, upload_file, calculate_total_cost
 )
-from app.extensions import current_app
 
 
 @quotation_bp.route('/')
