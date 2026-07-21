@@ -1,8 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SelectField, TextAreaField, IntegerField, FloatField, DateField, FileField, HiddenField
 from wtforms.validators import DataRequired, Email, Length, Optional, NumberRange, ValidationError
-from wtforms_sqlalchemy.fields import QuerySelectField
-from app.models import User, Customer, Product, Material, Machine, Vendor, Process, ProcessTemplate
 
 
 # ============ Authentication Forms ============
@@ -28,6 +26,7 @@ class UserForm(FlaskForm):
     password = PasswordField('Password')
     
     def validate_username(self, field):
+        from app.models import User
         user = User.query.filter_by(username=field.data).first()
         if user and (not hasattr(self, 'edit_id') or user.id != self.edit_id):
             raise ValidationError('Username already exists.')
@@ -82,9 +81,7 @@ class ProductForm(FlaskForm):
     thread = StringField('Thread', validators=[Length(max=50)])
     dimensions = TextAreaField('Dimensions (JSON)', validators=[Optional()])
     description = TextAreaField('Description', validators=[Optional()])
-    manufacturing_template_id = QuerySelectField('Manufacturing Template',
-        query_factory=lambda: ProcessTemplate.query.filter_by(is_active=True).all(),
-        get_label='template_name', allow_blank=True)
+    manufacturing_template_id = SelectField('Manufacturing Template', choices=[('', 'Select Template')], validate_choice=False)
     status = SelectField('Status', choices=[
         ('active', 'Active'),
         ('inactive', 'Inactive'),
@@ -200,12 +197,8 @@ class ProcessForm(FlaskForm):
         ('vendor', 'Vendor')
     ])
     description = TextAreaField('Description', validators=[Optional()])
-    machine_id = QuerySelectField('Machine',
-        query_factory=lambda: Machine.query.filter_by(is_active=True).all(),
-        get_label='machine_name', allow_blank=True)
-    vendor_id = QuerySelectField('Vendor',
-        query_factory=lambda: Vendor.query.filter_by(is_active=True).all(),
-        get_label='vendor_name', allow_blank=True)
+    machine_id = SelectField('Machine', choices=[('', 'Select Machine')], validate_choice=False)
+    vendor_id = SelectField('Vendor', choices=[('', 'Select Vendor')], validate_choice=False)
     department = StringField('Department', validators=[Length(max=50)])
     setup_time = FloatField('Setup Time (min)', validators=[Optional()])
     cycle_time = FloatField('Cycle Time (sec/pc)', validators=[Optional()])
@@ -235,9 +228,7 @@ class ProcessTemplateForm(FlaskForm):
 
 class RFQForm(FlaskForm):
     rfq_number = StringField('RFQ Number', validators=[DataRequired(), Length(max=30)])
-    customer_id = QuerySelectField('Customer',
-        query_factory=lambda: Customer.query.filter_by(is_active=True).all(),
-        get_label='company_name', validators=[DataRequired()])
+    customer_id = SelectField('Customer', choices=[('', 'Select Customer')], validate_choice=False)
     subject = StringField('Subject', validators=[Length(max=300)])
     description = TextAreaField('Description', validators=[Optional()])
     status = SelectField('Status', choices=[
@@ -257,9 +248,7 @@ class RFQForm(FlaskForm):
 
 
 class RFQItemForm(FlaskForm):
-    product_id = QuerySelectField('Product',
-        query_factory=lambda: Product.query.filter_by(status='active').all(),
-        get_label='product_name', allow_blank=True)
+    product_id = SelectField('Product', choices=[('', 'Select Product')], validate_choice=False)
     part_description = StringField('Part Description', validators=[Length(max=300)])
     drawing_number = StringField('Drawing Number', validators=[Length(max=100)])
     material = StringField('Material', validators=[Length(max=100)])
@@ -274,9 +263,7 @@ class RFQItemForm(FlaskForm):
 class QuotationForm(FlaskForm):
     quotation_number = StringField('Quotation Number', validators=[DataRequired(), Length(max=30)])
     quotation_version = StringField('Version', validators=[Length(max=10)])
-    customer_id = QuerySelectField('Customer',
-        query_factory=lambda: Customer.query.filter_by(is_active=True).all(),
-        get_label='company_name', validators=[DataRequired()])
+    customer_id = SelectField('Customer', choices=[('', 'Select Customer')], validate_choice=False)
     quotation_date = DateField('Quotation Date', validators=[DataRequired()])
     valid_until = DateField('Valid Until', validators=[Optional()])
     status = SelectField('Status', choices=[
@@ -311,9 +298,7 @@ class QuotationForm(FlaskForm):
 
 
 class QuotationItemForm(FlaskForm):
-    product_id = QuerySelectField('Product',
-        query_factory=lambda: Product.query.filter_by(status='active').all(),
-        get_label='product_name', allow_blank=True, description='Link to Product Library')
+    product_id = SelectField('Product', choices=[('', 'Select Product')], validate_choice=False)
     part_description = StringField('Part Description', validators=[Length(max=300)])
     drawing_number = StringField('Drawing Number', validators=[Length(max=100)])
     material = StringField('Material', validators=[Length(max=100)])
@@ -367,9 +352,7 @@ class RawMaterialCalculatorForm(FlaskForm):
     length = FloatField('Length (mm)', validators=[Optional()])
     
     # Material
-    material_id = QuerySelectField('Material',
-        query_factory=lambda: Material.query.filter_by(is_active=True).all(),
-        get_label='material_name', allow_blank=True)
+    material_id = SelectField('Material', choices=[('', 'Select Material')], validate_choice=False)
     custom_density = FloatField('Custom Density (kg/m³)', validators=[Optional()])
     
     # Allowances
