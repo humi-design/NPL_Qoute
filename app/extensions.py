@@ -30,12 +30,6 @@ def create_app(config_name='default'):
     # Initialize CSRF (exempt API endpoints)
     csrf.init_app(app)
     
-    # Exempt API blueprint from CSRF
-    from flask_wtf.csrf import csrf_exempt
-    api_bp = app.blueprints.get('api')
-    if api_bp:
-        csrf.exempt(api_bp)
-    
     # Login manager settings
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Please log in to access this page.'
