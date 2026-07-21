@@ -653,7 +653,7 @@ class Notification(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    user = db.relationship('User', backref='notifications')
+    user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic'))
     
     def __repr__(self):
         return f'<Notification {self.title}>'
