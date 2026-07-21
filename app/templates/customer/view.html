@@ -270,7 +270,7 @@
                 <hr>
                 <div class="d-flex justify-content-between">
                     <span class="text-muted">Total Business</span>
-                    <strong>₹ {{ "{:,.0f}".format(customer.quotations.filter_by(status='won').sum('total_amount') or 0) }}</strong>
+                    <strong>₹ {{ "{:,.0f}".format(total_value or 0) }}</strong>
                 </div>
             </div>
         </div>
