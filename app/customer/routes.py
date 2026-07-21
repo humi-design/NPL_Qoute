@@ -169,7 +169,18 @@ def edit(id):
         return redirect(url_for('customer.view', id=customer.id))
     
     attachments = Attachment.query.filter_by(entity_type='customer', entity_id=id).all()
-    return render_template('customer/form.html', form=form, customer=customer, attachments=attachments)
+    
+    # Calculate customer statistics
+    from sqlalchemy import func
+    won_quotations = customer.quotations.filter_by(status='won')
+    won_count = won_quotations.count()
+    total_value = db.session.query(func.sum(Quotation.total_amount)).filter(
+        Quotation.customer_id == id,
+        Quotation.status == 'won'
+    ).scalar() or 0
+    
+    return render_template('customer/form.html', form=form, customer=customer, 
+                         attachments=attachments, won_count=won_count, total_value=total_value)
 
 
 @customer_bp.route('/<int:id>/delete', methods=['POST'])

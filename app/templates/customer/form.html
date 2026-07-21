@@ -210,11 +210,11 @@
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Won Quotations</span>
-                        <strong class="text-success">{{ customer.quotations.filter_by(status='won').count() }}</strong>
+                        <strong class="text-success">{{ won_count }}</strong>
                     </div>
                     <div class="d-flex justify-content-between">
                         <span class="text-muted">Total Value</span>
-                        <strong>₹ {{ "{:,.0f}".format(customer.quotations.filter_by(status='won').sum('total_amount') or 0) }}</strong>
+                        <strong>₹ {{ "{:,.0f}".format(total_value or 0) }}</strong>
                     </div>
                 </div>
             </div>
