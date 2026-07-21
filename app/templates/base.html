@@ -16,42 +16,42 @@
     
     <style>
         /* ============================================
-           LIGHT MODE (Default)
+           LIGHT MODE (Default) - White & Blue Theme
            ============================================ */
         :root {
-            /* Sidebar Colors */
-            --sidebar-bg: #1e293b;
-            --sidebar-hover: #334155;
+            /* Sidebar - Blue Theme */
+            --sidebar-bg: #1e40af;
+            --sidebar-hover: #1e3a8a;
             --sidebar-active: #3b82f6;
-            --sidebar-text: rgba(255, 255, 255, 0.85);
+            --sidebar-text: rgba(255, 255, 255, 0.95);
             --sidebar-text-hover: #ffffff;
-            --sidebar-text-muted: rgba(255, 255, 255, 0.5);
-            --sidebar-border: rgba(255, 255, 255, 0.08);
+            --sidebar-text-muted: rgba(255, 255, 255, 0.7);
+            --sidebar-border: rgba(255, 255, 255, 0.15);
             
             /* Layout */
             --sidebar-width: 260px;
             --topbar-height: 60px;
-            --content-bg: #f1f5f9;
-            --card-radius: 10px;
+            --content-bg: #ffffff;
+            --card-radius: 8px;
             
-            /* Text Colors - Light Mode */
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --text-muted: #94a3b8;
+            /* Text Colors - Black Theme */
+            --text-primary: #000000;
+            --text-secondary: #374151;
+            --text-muted: #6b7280;
             
-            /* Border Colors - Light Mode */
-            --border-color: #e2e8f0;
-            --border-light: #f1f5f9;
+            /* Border Colors */
+            --border-color: #e5e7eb;
+            --border-light: #f9fafb;
             
-            /* Card & Background - Light Mode */
+            /* Card & Background - White Theme */
             --card-bg: #ffffff;
             --card-header-bg: #ffffff;
             --topbar-bg: #ffffff;
             --footer-bg: #ffffff;
             
-            /* Status Colors */
-            --status-draft-bg: #f1f5f9;
-            --status-draft-text: #475569;
+            /* Status Colors - Light */
+            --status-draft-bg: #f3f4f6;
+            --status-draft-text: #374151;
             --status-sent-bg: #dbeafe;
             --status-sent-text: #1d4ed8;
             --status-won-bg: #dcfce7;
@@ -62,78 +62,66 @@
             --status-pending-text: #d97706;
             --status-active-bg: #dcfce7;
             --status-active-text: #15803d;
-            --status-inactive-bg: #f1f5f9;
-            --status-inactive-text: #64748b;
+            --status-inactive-bg: #f3f4f6;
+            --status-inactive-text: #6b7280;
             
             /* Stat Icon Colors */
-            --stat-blue-bg: rgba(59, 130, 246, 0.1);
-            --stat-blue-text: #2563eb;
-            --stat-green-bg: rgba(34, 197, 94, 0.1);
-            --stat-green-text: #16a34a;
-            --stat-orange-bg: rgba(249, 115, 22, 0.1);
+            --stat-blue-bg: #dbeafe;
+            --stat-blue-text: #1d4ed8;
+            --stat-green-bg: #dcfce7;
+            --stat-green-text: #15803d;
+            --stat-orange-bg: #ffedd5;
             --stat-orange-text: #ea580c;
-            --stat-red-bg: rgba(239, 68, 68, 0.1);
+            --stat-red-bg: #fee2e2;
             --stat-red-text: #dc2626;
-            --stat-purple-bg: rgba(168, 85, 247, 0.1);
+            --stat-purple-bg: #f3e8ff;
             --stat-purple-text: #9333ea;
-            --stat-cyan-bg: rgba(6, 182, 212, 0.1);
+            --stat-cyan-bg: #cffafe;
             --stat-cyan-text: #0891b2;
             
-            /* Accent Colors */
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --success: #22c55e;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --info: #06b6d4;
+            /* Accent Colors - Blue */
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --info: #0891b2;
             
             /* Shadow */
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         
         /* ============================================
-           DARK MODE
+           DARK MODE - Dark Blue Theme
            ============================================ */
         @media (prefers-color-scheme: dark) {
             :root {
-                /* Text Colors - Dark Mode */
-                --text-primary: #f8fafc;
-                --text-secondary: #cbd5e1;
-                --text-muted: #94a3b8;
+                /* Sidebar - Darker Blue */
+                --sidebar-bg: #1e3a8a;
+                --sidebar-hover: #1e40af;
                 
-                /* Border Colors - Dark Mode */
-                --border-color: #334155;
-                --border-light: #1e293b;
+                /* Text Colors - White */
+                --text-primary: #ffffff;
+                --text-secondary: #e5e7eb;
+                --text-muted: #9ca3af;
                 
-                /* Background - Dark Mode */
-                --content-bg: #0f172a;
-                --card-bg: #1e293b;
-                --card-header-bg: #1e293b;
-                --topbar-bg: #1e293b;
-                --footer-bg: #1e293b;
+                /* Border Colors */
+                --border-color: #374151;
+                --border-light: #1f2937;
                 
-                /* Status Colors - Dark Mode */
-                --status-draft-bg: #334155;
-                --status-draft-text: #cbd5e1;
-                --status-sent-bg: #1e3a8a;
-                --status-sent-text: #93c5fd;
-                --status-won-bg: #14532d;
-                --status-won-text: #86efac;
-                --status-lost-bg: #7f1d1d;
-                --status-lost-text: #fca5a5;
-                --status-pending-bg: #78350f;
-                --status-pending-text: #fcd34d;
-                --status-active-bg: #14532d;
-                --status-active-text: #86efac;
-                --status-inactive-bg: #334155;
-                --status-inactive-text: #94a3b8;
+                /* Background */
+                --content-bg: #f3f4f6;
+                --card-bg: #ffffff;
+                --card-header-bg: #ffffff;
+                --topbar-bg: #ffffff;
+                --footer-bg: #ffffff;
                 
-                /* Shadow - Dark Mode */
-                --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-                --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
-                --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+                /* Shadow */
+                --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+                --shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+                --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
             }
         }
         
