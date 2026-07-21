@@ -454,3 +454,58 @@ INSERT INTO allowances (allowance_name, allowance_type, default_value, is_active
 ('Machining Allowance', 'machining', 1.0, TRUE),
 ('Grinding Allowance', 'grinding', 0.5, TRUE),
 ('Chamfer Allowance', 'finishing', 0.5, TRUE);
+
+-- Product Cost History table
+CREATE TABLE IF NOT EXISTS product_cost_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    raw_material_cost DECIMAL(12,4) DEFAULT 0,
+    machining_cost DECIMAL(12,4) DEFAULT 0,
+    other_costs DECIMAL(12,4) DEFAULT 0,
+    total_cost DECIMAL(12,4) DEFAULT 0,
+    recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    INDEX idx_product (product_id),
+    INDEX idx_recorded (recorded_at)
+);
+
+-- Quotation Operations table
+CREATE TABLE IF NOT EXISTS quotation_operations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    quotation_id INT NOT NULL,
+    operation_name VARCHAR(100),
+    sequence INT,
+    machine_id INT,
+    vendor_id INT,
+    setup_time DECIMAL(10,2),
+    cycle_time DECIMAL(10,2),
+    cost_type VARCHAR(20),
+    cost_value DECIMAL(12,4),
+    cost_amount DECIMAL(12,4) DEFAULT 0,
+    FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE CASCADE
+);
+
+-- Raw Material Calculations table
+CREATE TABLE IF NOT EXISTS raw_material_calculations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT,
+    shape_type VARCHAR(30) DEFAULT 'round_bar',
+    finished_length DECIMAL(10,2),
+    diameter DECIMAL(10,2),
+    width DECIMAL(10,2),
+    thickness DECIMAL(10,2),
+    height DECIMAL(10,2),
+    material_id INT,
+    material_density DECIMAL(10,4),
+    parting DECIMAL(10,2) DEFAULT 3,
+    facing DECIMAL(10,2) DEFAULT 2,
+    machining_allowance DECIMAL(10,2) DEFAULT 1,
+    grinding_allowance DECIMAL(10,2) DEFAULT 0,
+    chamfer_allowance DECIMAL(10,2) DEFAULT 0.5,
+    blank_length DECIMAL(10,2),
+    volume DECIMAL(12,4),
+    weight DECIMAL(12,4),
+    pieces_per_bar INT,
+    utilization_percent DECIMAL(6,2),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
