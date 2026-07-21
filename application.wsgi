@@ -1,24 +1,23 @@
 #!/usr/bin/env python3
 """
-WSGI configuration for cPanel/Apache deployment
+WSGI entry point for Flask application
+Compatible with cPanel, Apache mod_wsgi, and Passenger
 """
 
 import os
 import sys
 
-# Add the application directory to the Python path
-virtual_env = os.path.expanduser("~/virtualenv/npl_erp/3.11/lib/python3.11/site-packages")
-if os.path.exists(virtual_env):
-    sys.path.insert(0, virtual_env)
+# Add current directory to Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 
-# Add the project directory to the path
-sys.path.insert(0, os.path.dirname(__file__))
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
 
-# Set the Flask environment
+# Set production mode
 os.environ['FLASK_ENV'] = 'production'
-os.environ['SECRET_KEY'] = 'your-secret-key-change-this-in-production'
 
-# Import and create the Flask application
+# Import Flask application from run.py
 from run import app as application
-
-# Application is exposed as 'application' for WSGI
