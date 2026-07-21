@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="NPL Fasteners - ERP Quotation & Manufacturing Costing System">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}{{ page_title|default('Dashboard') }} - NPL ERP{% endblock %}</title>
     
     <!-- Bootstrap 5 CSS -->
@@ -1006,6 +1007,25 @@
             }
             return null;
         }
+    </script>
+    
+    <script>
+        // Setup CSRF token for all AJAX requests
+        var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        // Add CSRF token to all AJAX requests
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fetch with CSRF
+            var originalFetch = window.fetch;
+            window.fetch = function() {
+                var args = Array.prototype.slice.call(arguments);
+                if (args[1] && args[1].method && args[1].method !== 'GET') {
+                    args[1].headers = args[1].headers || {};
+                    args[1].headers['X-CSRFToken'] = csrfToken;
+                }
+                return originalFetch.apply(this, args);
+            };
+        });
     </script>
     
     {% block extra_js %}{% endblock %}
