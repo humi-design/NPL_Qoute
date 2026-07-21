@@ -168,7 +168,7 @@
                                         <img src="{{ url_for('static', filename=attachment.file_path.replace('uploads/', '')) }}" 
                                              class="img-fluid mb-2" style="max-height: 200px;">
                                         {% else %}
-                                        <i class="bi bi-file-earmark" style="font-size: 4rem; color: #6b7280;"></i>
+                                        <i class="bi bi-file-earmark" style="font-size: 4rem; color: var(--text-muted);"></i>
                                         {% endif %}
                                         <div class="fw-medium">{{ attachment.original_name }}</div>
                                         <small class="text-muted">{{ attachment.file_type|upper }}</small>
