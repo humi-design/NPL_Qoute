@@ -1,5 +1,5 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify
-from flask_login import login_required
+from flask_login import login_required, current_user
 from datetime import datetime
 from app.rfq import rfq_bp
 from app.models import db, RFQ, RFQItem, Customer, Attachment

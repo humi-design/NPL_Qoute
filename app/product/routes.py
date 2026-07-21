@@ -1,5 +1,5 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify, send_file
-from flask_login import login_required
+from flask_login import login_required, current_user
 from sqlalchemy import or_
 from datetime import datetime
 from app.product import product_bp
