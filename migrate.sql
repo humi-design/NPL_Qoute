@@ -586,12 +586,31 @@ CREATE TABLE IF NOT EXISTS system_settings (
 CREATE TABLE IF NOT EXISTS product_cost_history (
     id INT AUTO_INCREMENT PRIMARY KEY,
     product_id INT,
+    material_id INT,
+    quotation_id INT,
     raw_material_cost DECIMAL(12,4) DEFAULT 0,
     machining_cost DECIMAL(12,4) DEFAULT 0,
-    other_costs DECIMAL(12,4) DEFAULT 0,
+    vendor_cost DECIMAL(12,4) DEFAULT 0,
+    tooling_cost DECIMAL(12,4) DEFAULT 0,
+    overhead_cost DECIMAL(12,4) DEFAULT 0,
     total_cost DECIMAL(12,4) DEFAULT 0,
-    recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    selling_price DECIMAL(12,4) DEFAULT 0,
+    margin_percent DECIMAL(8,2) DEFAULT 0,
+    quantity INT DEFAULT 1,
+    recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    recorded_by INT
 );
+
+-- Add missing columns if they don't exist
+ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS material_id INT AFTER product_id;
+ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS quotation_id INT AFTER material_id;
+ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS vendor_cost DECIMAL(12,4) DEFAULT 0 AFTER machining_cost;
+ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS tooling_cost DECIMAL(12,4) DEFAULT 0 AFTER vendor_cost;
+ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS overhead_cost DECIMAL(12,4) DEFAULT 0 AFTER tooling_cost;
+ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS selling_price DECIMAL(12,4) DEFAULT 0 AFTER total_cost;
+ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS margin_percent DECIMAL(8,2) DEFAULT 0 AFTER selling_price;
+ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS quantity INT DEFAULT 1 AFTER margin_percent;
+ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS recorded_by INT AFTER recorded_at;
 
 -- =============================================
 -- RAW MATERIAL CALCULATIONS TABLE
