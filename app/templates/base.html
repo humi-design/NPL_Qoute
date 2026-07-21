@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="NPL Fasteners - ERP Quotation & Manufacturing Costing System">
+    <title>{% block title %}{{ page_title|default('Dashboard') }} - NPL ERP{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- DataTables -->
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --sidebar-dark: #1a1d23;
+            --sidebar-hover: #2d3139;
+            --sidebar-active: #3b82f6;
+            --topbar-height: 56px;
+            --content-bg: #f5f6f8;
+            --card-radius: 8px;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--content-bg);
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--sidebar-dark);
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-brand {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .sidebar-brand img {
+            width: 36px;
+            height: 36px;
+        }
+        
+        .sidebar-brand-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .sidebar-menu {
+            padding: 1rem 0;
+            flex: 1;
+        }
+        
+        .sidebar-section {
+            padding: 0.5rem 1rem;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 0.05em;
+            margin-top: 1rem;
+        }
+        
+        .sidebar-section:first-child {
+            margin-top: 0;
+        }
+        
+        .nav-item {
+            margin: 0.25rem 0.75rem;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.65rem 1rem;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        
+        .nav-link:hover {
+            background: var(--sidebar-hover);
+            color: #fff;
+        }
+        
+        .nav-link.active {
+            background: var(--sidebar-active);
+            color: #fff;
+        }
+        
+        .nav-link i {
+            width: 24px;
+            font-size: 1.1rem;
+            margin-right: 0.75rem;
+        }
+        
+        .nav-link .badge {
+            margin-left: auto;
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+        }
+        
+        /* Top Bar */
+        .topbar {
+            position: sticky;
+            top: 0;
+            height: var(--topbar-height);
+            background: #fff;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 1.5rem;
+            z-index: 100;
+        }
+        
+        .topbar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-primary);
+            margin-right: 1rem;
+        }
+        
+        .breadcrumb-container {
+            flex: 1;
+        }
+        
+        .breadcrumb {
+            margin: 0;
+            font-size: 0.85rem;
+        }
+        
+        .breadcrumb-item a {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+        
+        .breadcrumb-item.active {
+            color: var(--text-primary);
+        }
+        
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .topbar-search {
+            position: relative;
+        }
+        
+        .topbar-search input {
+            width: 250px;
+            padding: 0.5rem 1rem 0.5rem 2.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+        
+        .topbar-search input:focus {
+            outline: none;
+            border-color: var(--sidebar-active);
+        }
+        
+        .topbar-search i {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        
+        .topbar-user {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .topbar-user:hover {
+            background: var(--content-bg);
+        }
+        
+        .topbar-user img {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+        }
+        
+        .topbar-user-info {
+            text-align: left;
+        }
+        
+        .topbar-user-name {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .topbar-user-role {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Content Area */
+        .content {
+            padding: 1.5rem;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        
+        .page-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        
+        .page-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: var(--card-radius);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .card-header {
+            background: #fff;
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 1.25rem;
+            font-weight: 600;
+        }
+        
+        .card-body {
+            padding: 1.25rem;
+        }
+        
+        /* Stats Cards */
+        .stat-card {
+            background: #fff;
+            border-radius: var(--card-radius);
+            padding: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+        
+        .stat-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+        .stat-icon.green { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+        .stat-icon.orange { background: rgba(249, 115, 22, 0.1); color: #f97316; }
+        .stat-icon.red { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        .stat-icon.purple { background: rgba(168, 85, 247, 0.1); color: #a855f7; }
+        .stat-icon.cyan { background: rgba(6, 182, 212, 0.1); color: #06b6d4; }
+        
+        .stat-info h4 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+            color: var(--text-primary);
+        }
+        
+        .stat-info p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+        
+        .stat-change {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .stat-change.up { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+        .stat-change.down { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        
+        /* Tables */
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table thead th {
+            background: var(--content-bg);
+            border-bottom: 2px solid var(--border-color);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            padding: 0.75rem 1rem;
+            position: sticky;
+            top: 0;
+        }
+        
+        .table tbody td {
+            padding: 0.875rem 1rem;
+            vertical-align: middle;
+            font-size: 0.875rem;
+        }
+        
+        .table tbody tr:hover {
+            background: rgba(59, 130, 246, 0.02);
+        }
+        
+        /* Status Badges */
+        .badge-status {
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .badge-draft { background: #e5e7eb; color: #374151; }
+        .badge-sent { background: #dbeafe; color: #1d4ed8; }
+        .badge-won { background: #dcfce7; color: #15803d; }
+        .badge-lost { background: #fee2e2; color: #dc2626; }
+        .badge-pending { background: #fef3c7; color: #d97706; }
+        .badge-active { background: #dcfce7; color: #15803d; }
+        .badge-inactive { background: #f3f4f6; color: #6b7280; }
+        
+        /* Forms */
+        .form-label {
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-control, .form-select {
+            border-radius: 6px;
+            padding: 0.625rem 0.875rem;
+            font-size: 0.875rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--sidebar-active);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        /* Buttons */
+        .btn {
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+        }
+        
+        .btn-primary { background: var(--sidebar-active); border-color: var(--sidebar-active); }
+        .btn-primary:hover { background: #2563eb; border-color: #2563eb; }
+        
+        /* Modal */
+        .modal-header {
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .modal-footer {
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* Alerts */
+        .alert {
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+        
+        /* Tabs */
+        .nav-tabs {
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.75rem 1.25rem;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            color: var(--text-primary);
+            border: none;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--sidebar-active);
+            border: none;
+            border-bottom: 2px solid var(--sidebar-active);
+            background: none;
+        }
+        
+        /* Footer */
+        .footer {
+            padding: 1rem 1.5rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+            background: #fff;
+        }
+        
+        /* Notifications Dropdown */
+        .notification-dropdown {
+            position: relative;
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 18px;
+            height: 18px;
+            background: #ef4444;
+            color: #fff;
+            border-radius: 50%;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Quick Actions */
+        .quick-action {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 6px;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .quick-action:hover {
+            border-color: var(--sidebar-active);
+            background: rgba(59, 130, 246, 0.02);
+        }
+        
+        .quick-action i {
+            font-size: 1.25rem;
+            color: var(--sidebar-active);
+        }
+        
+        /* Responsive */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .topbar-toggle {
+                display: block;
+            }
+            
+            .topbar-search {
+                display: none;
+            }
+            
+            .topbar-user-info {
+                display: none;
+            }
+        }
+        
+        /* Dark mode adjustments */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --content-bg: #0f172a;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border-color: #334155;
+            }
+            
+            .card, .stat-card, .topbar, .footer {
+                background: #1e293b;
+            }
+            
+            .table thead th {
+                background: #1e293b;
+            }
+            
+            .form-control, .form-select {
+                background: #334155;
+                border-color: #475569;
+                color: #f1f5f9;
+            }
+        }
+        
+        /* DataTables responsive */
+        .dataTables_wrapper {
+            padding: 0;
+        }
+        
+        .dataTables_filter {
+            margin-bottom: 1rem;
+        }
+        
+        .dataTables_length {
+            margin-bottom: 1rem;
+        }
+        
+        .paginate_button {
+            padding: 0.5rem 0.75rem;
+        }
+        
+        /* Print styles */
+        @media print {
+            .sidebar, .topbar, .page-actions, .footer {
+                display: none !important;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    {% if current_user.is_authenticated %}
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <i class="bi bi-gear-fill" style="font-size: 1.5rem; color: #3b82f6;"></i>
+            <span class="sidebar-brand-text">NPL ERP</span>
+        </div>
+        
+        <div class="sidebar-menu">
+            <div class="sidebar-section">Main</div>
+            <div class="nav-item">
+                <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Dashboard</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-section">Sales</div>
+            <div class="nav-item">
+                <a href="{{ url_for('customer.index') }}" class="nav-link {% if request.endpoint and 'customer' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-people"></i>
+                    <span>Customers</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('rfq.index') }}" class="nav-link {% if request.endpoint and 'rfq' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>RFQs</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('quotation.index') }}" class="nav-link {% if request.endpoint and 'quotation' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-file-earmark-bar-graph"></i>
+                    <span>Quotations</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-section">Products</div>
+            <div class="nav-item">
+                <a href="{{ url_for('product.index') }}" class="nav-link {% if request.endpoint and 'product' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-box-seam"></i>
+                    <span>Product Library</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-section">Manufacturing</div>
+            <div class="nav-item">
+                <a href="{{ url_for('process.index') }}" class="nav-link {% if request.endpoint and 'process' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Processes</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('material.index') }}" class="nav-link {% if request.endpoint and 'material' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-box"></i>
+                    <span>Materials</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('machine.index') }}" class="nav-link {% if request.endpoint and 'machine' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-gear"></i>
+                    <span>Machines</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('vendor.index') }}" class="nav-link {% if request.endpoint and 'vendor' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-truck"></i>
+                    <span>Vendors</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-section">Reports</div>
+            <div class="nav-item">
+                <a href="{{ url_for('report.index') }}" class="nav-link {% if request.endpoint and 'report' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Reports</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-section">Settings</div>
+            <div class="nav-item">
+                <a href="{{ url_for('setting.index') }}" class="nav-link {% if request.endpoint and 'setting' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-sliders"></i>
+                    <span>Settings</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('auth.users') }}" class="nav-link {% if request.endpoint == 'auth.users' %}active{% endif %}">
+                    <i class="bi bi-person-gear"></i>
+                    <span>Users</span>
+                </a>
+            </div>
+        </div>
+        
+        <div style="padding: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+            <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color: rgba(255,255,255,0.6);">
+                <i class="bi bi-box-arrow-left"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </nav>
+    {% endif %}
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        {% if current_user.is_authenticated %}
+        <!-- Top Bar -->
+        <header class="topbar">
+            <button class="topbar-toggle" id="sidebarToggle">
+                <i class="bi bi-list"></i>
+            </button>
+            
+            <div class="breadcrumb-container">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Home</a></li>
+                        {% block breadcrumb %}{% endblock %}
+                        <li class="breadcrumb-item active" aria-current="page">{{ page_title|default('Dashboard') }}</li>
+                    </ol>
+                </nav>
+            </div>
+            
+            <div class="topbar-actions">
+                <div class="topbar-search">
+                    <i class="bi bi-search"></i>
+                    <input type="text" placeholder="Search..." id="globalSearch">
+                </div>
+                
+                <div class="notification-dropdown">
+                    <a href="#" class="topbar-action" data-bs-toggle="dropdown">
+                        <i class="bi bi-bell" style="font-size: 1.25rem; color: var(--text-secondary);"></i>
+                        {% set unread_count = current_user.notifications.filter_by(is_read=False).count() %}
+                        {% if unread_count > 0 %}
+                        <span class="notification-badge">{{ unread_count }}</span>
+                        {% endif %}
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end">
+                        <div class="dropdown-header">Notifications</div>
+                        <div class="dropdown-body" style="max-height: 300px; overflow-y: auto;">
+                            {% for notification in current_user.notifications.order_by('created_at desc').limit(5).all() %}
+                            <a href="#" class="dropdown-item {% if not notification.is_read %}bg-light{% endif %}">
+                                <div class="fw-bold">{{ notification.title }}</div>
+                                <small class="text-muted">{{ notification.message }}</small>
+                            </a>
+                            {% else %}
+                            <div class="dropdown-item text-muted">No notifications</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <a href="{{ url_for('auth.profile') }}" class="topbar-user">
+                    <i class="bi bi-person-circle" style="font-size: 2rem; color: var(--text-secondary);"></i>
+                    <div class="topbar-user-info">
+                        <div class="topbar-user-name">{{ current_user.full_name }}</div>
+                        <div class="topbar-user-role">{{ current_user.role|title }}</div>
+                    </div>
+                </a>
+            </div>
+        </header>
+        {% endif %}
+        
+        <!-- Content -->
+        <div class="content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            {% block content %}{% endblock %}
+        </div>
+        
+        <!-- Footer -->
+        {% if current_user.is_authenticated %}
+        <footer class="footer">
+            <p>&copy; {{ current_year|default(2024) }} {{ config.COMPANY_NAME }}. All rights reserved. | Powered by NPL ERP</p>
+        </footer>
+        {% endif %}
+    </main>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- DataTables -->
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+    
+    <script>
+        // Sidebar toggle
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('show');
+        });
+        
+        // Close sidebar on outside click
+        document.addEventListener('click', function(e) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            if (sidebar && toggle && !sidebar.contains(e.target) && !toggle.contains(e.target)) {
+                sidebar.classList.remove('show');
+            }
+        });
+        
+        // Global search
+        let searchTimeout;
+        document.getElementById('globalSearch')?.addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(function() {
+                const query = e.target.value.trim();
+                if (query.length >= 2) {
+                    window.location.href = '{{ url_for("main.search") }}?q=' + encodeURIComponent(query);
+                }
+            }, 500);
+        });
+        
+        // Confirm delete
+        document.querySelectorAll('[data-confirm]').forEach(function(el) {
+            el.addEventListener('click', function(e) {
+                if (!confirm(this.dataset.confirm || 'Are you sure you want to delete this item?')) {
+                    e.preventDefault();
+                }
+            });
+        });
+        
+        // Autosave draft (for forms with data-autosave attribute)
+        document.querySelectorAll('form[data-autosave]').forEach(function(form) {
+            let saveTimeout;
+            form.addEventListener('input', function() {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(function() {
+                    // Save to localStorage
+                    const formData = new FormData(form);
+                    const data = {};
+                    for (let [key, value] of formData.entries()) {
+                        data[key] = value;
+                    }
+                    localStorage.setItem('draft_' + form.id, JSON.stringify(data));
+                }, 2000);
+            });
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + S to save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                const activeForm = document.querySelector('form[data-autosave]:focus-within');
+                if (activeForm) {
+                    activeForm.submit();
+                }
+            }
+            // Ctrl/Cmd + N for new
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                const newBtn = document.querySelector('[data-action="new"]');
+                if (newBtn) {
+                    e.preventDefault();
+                    window.location.href = newBtn.href;
+                }
+            }
+        });
+        
+        // Initialize DataTables
+        function initDataTable(tableId, options = {}) {
+            const defaultOptions = {
+                "responsive": true,
+                "autoWidth": false,
+                "pageLength": 25,
+                "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+                "dom": "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+                       "<'row'<'col-sm-12'tr>>" +
+                       "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+                "language": {
+                    "search": "_INPUT_",
+                    "searchPlaceholder": "Search...",
+                    "lengthMenu": "_MENU_",
+                    "info": "Showing _START_ to _END_ of _TOTAL_ entries",
+                    "paginate": {
+                        "first": "First",
+                        "last": "Last",
+                        "next": "Next",
+                        "previous": "Previous"
+                    }
+                }
+            };
+            
+            const table = document.getElementById(tableId);
+            if (table && typeof $.fn.DataTable === 'function') {
+                return $(table).DataTable({...defaultOptions, ...options});
+            }
+            return null;
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

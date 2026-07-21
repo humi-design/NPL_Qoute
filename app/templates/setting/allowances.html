@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Material Allowances</h1></div><div class="page-actions"><a href="{{ url_for('setting.new_allowance') }}" class="btn btn-primary"><i class="bi bi-plus"></i> Add</a></div></div>
+<div class="card"><div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Value (mm)</th></tr></thead><tbody>
+{% for a in allowances %}<tr><td><strong>{{ a.allowance_code }}</strong></td><td>{{ a.allowance_name }}</td>
+<td>{{ a.allowance_type|title }}</td><td>{{ a.value }}</td></tr>
+{% endfor %}</tbody></table></div></div>
+{% endblock %}

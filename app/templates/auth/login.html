@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - NPL ERP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-dark: #1a1d23;
+            --sidebar-active: #3b82f6;
+        }
+        
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--sidebar-dark) 0%, #2d3748 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+        }
+        
+        .login-header {
+            background: var(--sidebar-dark);
+            padding: 2rem;
+            text-align: center;
+            color: #fff;
+        }
+        
+        .login-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .login-header p {
+            font-size: 0.875rem;
+            opacity: 0.8;
+            margin: 0.5rem 0 0;
+        }
+        
+        .login-body {
+            padding: 2rem;
+        }
+        
+        .form-label {
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: #374151;
+        }
+        
+        .form-control {
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .form-control:focus {
+            border-color: var(--sidebar-active);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .btn-login {
+            width: 100%;
+            padding: 0.75rem;
+            font-weight: 600;
+            background: var(--sidebar-active);
+            border: none;
+            border-radius: 8px;
+        }
+        
+        .btn-login:hover {
+            background: #2563eb;
+        }
+        
+        .form-check-input:checked {
+            background-color: var(--sidebar-active);
+            border-color: var(--sidebar-active);
+        }
+        
+        .login-footer {
+            text-align: center;
+            padding: 1rem 2rem 2rem;
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        
+        .alert {
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-header">
+            <h1><i class="bi bi-gear-fill me-2"></i>NPL ERP</h1>
+            <p>Fastener Quotation & Manufacturing Costing</p>
+        </div>
+        
+        <div class="login-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <form method="POST" action="{{ url_for('auth.login') }}">
+                {{ form.hidden_tag() }}
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.username.label.text }}</label>
+                    {{ form.username(class="form-control", placeholder="Enter username") }}
+                    {% if form.username.errors %}
+                    <div class="text-danger small mt-1">{{ form.username.errors[0] }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.password.label.text }}</label>
+                    {{ form.password(class="form-control", placeholder="Enter password") }}
+                    {% if form.password.errors %}
+                    <div class="text-danger small mt-1">{{ form.password.errors[0] }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <div class="form-check">
+                        {{ form.remember(class="form-check-input") }}
+                        <label class="form-check-label">{{ form.remember.label.text }}</label>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-login">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                </button>
+            </form>
+        </div>
+        
+        <div class="login-footer">
+            <p class="mb-0">&copy; {{ current_year|default(2024) }} {{ config.COMPANY_NAME }}. All rights reserved.</p>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">{{ vendor.vendor_name }}</h1><p class="page-subtitle">{{ vendor.vendor_code }}</p></div>
+<div class="page-actions"><a href="{{ url_for('vendor.edit', id=vendor.id) }}" class="btn btn-outline-primary"><i class="bi bi-pencil"></i> Edit</a></div></div>
+<div class="row">
+<div class="col-lg-6"><div class="card mb-4"><div class="card-header"><span>Details</span></div><div class="card-body">
+<div class="mb-3"><label class="text-muted small">Contact</label><div>{{ vendor.contact_person or '-' }}</div></div>
+<div class="mb-3"><label class="text-muted small">Email</label><div>{{ vendor.email or '-' }}</div></div>
+<div class="mb-3"><label class="text-muted small">Phone</label><div>{{ vendor.phone or '-' }}</div></div>
+<div class="mb-3"><label class="text-muted small">Lead Time</label><div>{{ vendor.lead_time or '-' }} days</div></div>
+</div></div></div>
+<div class="col-lg-6"><div class="card mb-4"><div class="card-header"><span>Service Rates</span></div><div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Service</th><th>Rate</th><th>Unit</th></tr></thead><tbody>
+{% for rate in rates %}<tr><td>{{ rate.service_name }}</td><td>{{ rate.rate }}</td><td>{{ rate.unit }}</td></tr>
+{% else %}<tr><td colspan="3" class="text-center">No rates</td></tr>
+{% endfor %}</tbody></table></div></div></div>
+</div>
+{% endblock %}

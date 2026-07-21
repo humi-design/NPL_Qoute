@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Margin Analysis</h1></div></div>
+<div class="card"><div class="card-body p-0"><table class="table table-hover mb-0"><thead><tr><th>Product</th><th>Quote</th><th>Qty</th><th>Price</th><th>Cost</th><th>Margin %</th></tr></thead><tbody>
+{% for item, quote, product in items %}<tr>
+<td>{{ product.internal_code if product else '-' }}</td><td>{{ quote.quotation_number }}</td><td>{{ item.quantity_1 }}</td>
+<td>₹ {{ "{:,.2f}".format(item.unit_price_1 or 0) }}</td><td>₹ {{ "{:,.2f}".format((item.material_cost or 0) + (item.machining_cost or 0)) }}</td>
+<td><span class="badge bg-{{ 'success' if ((item.unit_price_1 - (item.material_cost or 0) - (item.machining_cost or 0)) / item.unit_price_1 * 100 > 20 if item.unit_price_1 else 0) else 'warning' }}">
+{{ "{:.1f}".format(((item.unit_price_1 - (item.material_cost or 0) - (item.machining_cost or 0)) / item.unit_price_1 * 100) if item.unit_price_1 else 0) }}%</span></td>
+</tr>
+{% else %}<tr><td colspan="6" class="text-center">No data</td></tr>
+{% endfor %}</tbody></table></div></div>
+{% endblock %}

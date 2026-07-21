@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">General Settings</h1></div></div>
+<form method="POST">
+<div class="card mb-4"><div class="card-header"><span>Company Information</span></div><div class="card-body">
+<div class="row mb-3">
+<div class="col-md-6"><label class="form-label">Company Name</label><input type="text" name="company_name" class="form-control" value="{{ settings.get('COMPANY_NAME', '') }}"></div>
+<div class="col-md-6"><label class="form-label">GST Number</label><input type="text" name="company_gst" class="form-control" value="{{ settings.get('COMPANY_GST', '') }}"></div>
+</div>
+<div class="row mb-3">
+<div class="col-md-6"><label class="form-label">Phone</label><input type="text" name="company_phone" class="form-control" value="{{ settings.get('COMPANY_PHONE', '') }}"></div>
+<div class="col-md-6"><label class="form-label">Email</label><input type="email" name="company_email" class="form-control" value="{{ settings.get('COMPANY_EMAIL', '') }}"></div>
+</div>
+<div class="mb-3"><label class="form-label">Address</label><textarea name="company_address" class="form-control" rows="2">{{ settings.get('COMPANY_ADDRESS', '') }}</textarea></div>
+</div></div>
+<div class="card mb-4"><div class="card-header"><span>Costing Defaults</span></div><div class="card-body">
+<div class="row mb-3">
+<div class="col-md-4"><label class="form-label">Overhead %</label><input type="number" name="default_overhead_percent" class="form-control" step="0.01" value="{{ settings.get('DEFAULT_OVERHEAD_PERCENT', '15') }}"></div>
+<div class="col-md-4"><label class="form-label">Profit %</label><input type="number" name="default_profit_percent" class="form-control" step="0.01" value="{{ settings.get('DEFAULT_PROFIT_PERCENT', '20') }}"></div>
+<div class="col-md-4"><label class="form-label">Scrap %</label><input type="number" name="default_scrap_percent" class="form-control" step="0.01" value="{{ settings.get('DEFAULT_SCRAP_PERCENT', '2') }}"></div>
+</div>
+</div></div>
+<div class="d-flex justify-content-end">
+<button type="submit" class="btn btn-primary"><i class="bi bi-check"></i> Save Settings</button>
+</div>
+</form>
+{% endblock %}

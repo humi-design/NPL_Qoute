@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block title %}Raw Material Calculator - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="#">Tools</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Raw Material Calculator</h1>
+        <p class="page-subtitle">Calculate blank dimensions, weight, and material costs</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Calculator Form -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <span>Input Parameters</span>
+            </div>
+            <div class="card-body">
+                <form id="calculatorForm">
+                    <!-- Stock Type -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Stock Type</label>
+                            <select name="stock_type" id="stockType" class="form-select" required>
+                                <option value="round_bar">Round Bar</option>
+                                <option value="hex_bar">Hex Bar</option>
+                                <option value="square_bar">Square Bar</option>
+                                <option value="tube">Tube</option>
+                                <option value="pipe">Pipe</option>
+                                <option value="sheet">Sheet</option>
+                                <option value="flat">Flat</option>
+                                <option value="wire">Wire</option>
+                                <option value="coil">Coil</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Finished Length (mm)</label>
+                            <input type="number" name="finished_length" id="finishedLength" class="form-control" 
+                                   step="0.01" required value="50">
+                        </div>
+                    </div>
+                    
+                    <!-- Dimensions -->
+                    <div id="dimensionsSection">
+                        <div class="row mb-3" id="diameterRow">
+                            <div class="col-md-6">
+                                <label class="form-label">Diameter (mm)</label>
+                                <input type="number" name="diameter" id="diameter" class="form-control" step="0.01" value="20">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">AF / Width (mm)</label>
+                                <input type="number" name="af" id="af" class="form-control" step="0.01" placeholder="For Hex Bar">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3" id="tubeRow" style="display: none;">
+                            <div class="col-md-4">
+                                <label class="form-label">OD (mm)</label>
+                                <input type="number" name="od" id="od" class="form-control" step="0.01">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">ID (mm)</label>
+                                <input type="number" name="id" id="id" class="form-control" step="0.01" value="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Length (mm)</label>
+                                <input type="number" name="length" id="length" class="form-control" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3" id="sheetRow" style="display: none;">
+                            <div class="col-md-4">
+                                <label class="form-label">Width (mm)</label>
+                                <input type="number" name="width" id="width" class="form-control" step="0.01">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Thickness (mm)</label>
+                                <input type="number" name="thickness" id="thickness" class="form-control" step="0.01">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Length (mm)</label>
+                                <input type="number" name="length2" id="length2" class="form-control" step="0.01">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Material -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Material</label>
+                            <select name="material_id" id="materialId" class="form-select">
+                                <option value="">Select Material</option>
+                                {% for material in materials %}
+                                <option value="{{ material.id }}" data-density="{{ material.density }}" 
+                                        data-rate="{{ material.default_rate }}" data-unit="{{ material.rate_unit }}">
+                                    {{ material.material_name }} ({{ material.material_code }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Custom Density (kg/m³)</label>
+                            <input type="number" name="custom_density" id="customDensity" class="form-control" 
+                                   step="0.01" placeholder="Override material density">
+                        </div>
+                    </div>
+                    
+                    <!-- Allowances -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Allowances (mm)</label>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">Parting</label>
+                            <input type="number" name="parting" id="parting" class="form-control" step="0.01" value="3">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">Facing</label>
+                            <input type="number" name="facing" id="facing" class="form-control" step="0.01" value="2">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">Machining</label>
+                            <input type="number" name="machining_allowance" id="machiningAllowance" class="form-control" step="0.01" value="1">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">Grinding</label>
+                            <input type="number" name="grinding_allowance" id="grindingAllowance" class="form-control" step="0.01" value="0">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">Chamfer</label>
+                            <input type="number" name="chamfer_allowance" id="chamferAllowance" class="form-control" step="0.01" value="0.5">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">Bar Length (mm)</label>
+                            <input type="number" name="bar_length" id="barLength" class="form-control" step="1" value="3000">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Rate per kg (₹)</label>
+                            <input type="number" name="rate_per_kg" id="ratePerKg" class="form-control" step="0.01">
+                        </div>
+                    </div>
+                    
+                    <!-- Custom Allowances -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Custom Allowances</label>
+                        </div>
+                        {% for i in range(1, 4) %}
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted">Name {{ i }}</label>
+                            <input type="text" name="custom_allowance_{{ i }}_name" id="customAllowance{{ i }}Name" 
+                                   class="form-control" placeholder="e.g. Grinding">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted">Value {{ i }} (mm)</label>
+                            <input type="number" name="custom_allowance_{{ i }}_value" id="customAllowance{{ i }}Value" 
+                                   class="form-control" step="0.01" value="0">
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-outline-secondary" id="resetBtn">Reset</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-calculator"></i> Calculate
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Results -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <span>Calculation Results</span>
+            </div>
+            <div class="card-body">
+                <div id="resultsSection">
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-calculator" style="font-size: 3rem;"></i>
+                        <p class="mt-2">Enter values and click Calculate</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const stockType = document.getElementById('stockType');
+    const materialSelect = document.getElementById('materialId');
+    
+    // Update dimensions visibility based on stock type
+    stockType.addEventListener('change', function() {
+        const type = this.value;
+        document.getElementById('diameterRow').style.display = type !== 'tube' && type !== 'pipe' && type !== 'sheet' && type !== 'flat' ? 'block' : 'none';
+        document.getElementById('tubeRow').style.display = type === 'tube' || type === 'pipe' ? 'block' : 'none';
+        document.getElementById('sheetRow').style.display = type === 'sheet' || type === 'flat' ? 'block' : 'none';
+    });
+    
+    // Update rate when material is selected
+    materialSelect.addEventListener('change', function() {
+        const option = this.options[this.selectedIndex];
+        if (option && option.dataset.rate) {
+            document.getElementById('ratePerKg').value = option.dataset.rate;
+        }
+    });
+    
+    // Reset form
+    document.getElementById('resetBtn').addEventListener('click', function() {
+        document.getElementById('calculatorForm').reset();
+        document.getElementById('resultsSection').innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-calculator" style="font-size: 3rem;"></i>
+                <p class="mt-2">Enter values and click Calculate</p>
+            </div>
+        `;
+    });
+    
+    // Calculate
+    document.getElementById('calculatorForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        fetch('{{ url_for("main.calculate_material") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('resultsSection').innerHTML = `
+                    <div class="result-section mb-4">
+                        <h6 class="text-muted text-uppercase small">Blank Dimensions</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Blank Length:</span>
+                            <strong>${data.blank_length} mm</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="result-section mb-4">
+                        <h6 class="text-muted text-uppercase small">Material Weight</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Volume:</span>
+                            <strong>${data.volume_mm3.toLocaleString()} mm³</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Weight:</span>
+                            <strong>${data.weight_grams} g</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Weight:</span>
+                            <strong>${data.weight_kg} kg</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Density:</span>
+                            <strong>${data.density} kg/m³</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="result-section mb-4">
+                        <h6 class="text-muted text-uppercase small">Material Utilization</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Pieces per Bar:</span>
+                            <strong>${data.pieces_per_bar}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Waste:</span>
+                            <strong class="text-danger">${data.waste_percentage}%</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Utilization:</span>
+                            <strong class="text-success">${data.utilization}%</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="result-section">
+                        <h6 class="text-muted text-uppercase small">Cost</h6>
+                        <div class="d-flex justify-content-between">
+                            <span>Material Cost/pc:</span>
+                            <strong class="text-primary">₹ ${data.material_cost.toFixed(4)}</strong>
+                        </div>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Calculation error. Please check inputs.');
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div><h1 class="page-title">RFQs</h1></div>
+    <div class="page-actions">
+        <a href="{{ url_for('rfq.new') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New RFQ</a>
+    </div>
+</div>
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>RFQ #</th><th>Customer</th><th>Subject</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for rfq in rfqs.items %}
+                <tr onclick="window.location='{{ url_for('rfq.view', id=rfq.id) }}'" style="cursor:pointer">
+                    <td><strong>{{ rfq.rfq_number }}</strong></td>
+                    <td>{{ rfq.customer.company_name if rfq.customer else '-' }}</td>
+                    <td>{{ rfq.subject or '-' }}</td>
+                    <td><span class="badge-status badge-{{ rfq.status }}">{{ rfq.status|replace('_',' ')|title }}</span></td>
+                    <td>{{ rfq.created_at.strftime('%d %b %Y') }}</td>
+                    <td><a href="{{ url_for('rfq.view', id=rfq.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No RFQs found</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

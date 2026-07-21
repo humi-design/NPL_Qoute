@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Settings</h1></div></div>
+<div class="row">
+<div class="col-md-4 mb-4"><a href="{{ url_for('setting.general') }}" class="text-decoration-none"><div class="card h-100"><div class="card-body text-center">
+<i class="bi bi-gear" style="font-size: 3rem; color: var(--sidebar-active);"></i><h5 class="mt-3">General Settings</h5></div></div></a></div>
+<div class="col-md-4 mb-4"><a href="{{ url_for('setting.currencies') }}" class="text-decoration-none"><div class="card h-100"><div class="card-body text-center">
+<i class="bi bi-currency-dollar" style="font-size: 3rem; color: var(--sidebar-active);"></i><h5 class="mt-3">Currencies</h5></div></div></a></div>
+<div class="col-md-4 mb-4"><a href="{{ url_for('setting.allowances') }}" class="text-decoration-none"><div class="card h-100"><div class="card-body text-center">
+<i class="bi bi-rulers" style="font-size: 3rem; color: var(--sidebar-active);"></i><h5 class="mt-3">Allowances</h5></div></div></a></div>
+</div>
+{% endblock %}

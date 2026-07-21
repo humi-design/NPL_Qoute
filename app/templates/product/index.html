@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Product Library - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Product Library</h1>
+        <p class="page-subtitle">Manage your reusable product master</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('product.new') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Add Product
+        </a>
+        <a href="{{ url_for('product.export') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-download"></i> Export
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="search" placeholder="Search code, name, drawing..." value="{{ search }}">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select name="material" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Materials</option>
+                    {% for mat in materials %}
+                    <option value="{{ mat }}" {% if material == mat %}selected{% endif %}>{{ mat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control" name="standard" placeholder="DIN/ISO..." value="{{ standard }}">
+            </div>
+            <div class="col-md-2">
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Status</option>
+                    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="archived" {% if status == 'archived' %}selected{% endif %}>Archived</option>
+                </select>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Internal Code</th>
+                        <th>Product Name</th>
+                        <th>Material</th>
+                        <th>Drawing #</th>
+                        <th>Standard</th>
+                        <th>Thread</th>
+                        <th>Revision</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products.items %}
+                    <tr style="cursor: pointer;" onclick="window.location='{{ url_for('product.view', id=product.id) }}'">
+                        <td><strong>{{ product.internal_code }}</strong></td>
+                        <td>
+                            {{ product.product_name }}
+                            {% if product.customer_part_number %}
+                            <br><small class="text-muted">Cust P/N: {{ product.customer_part_number }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ product.material or '-' }}</td>
+                        <td>{{ product.drawing_number or '-' }}</td>
+                        <td>
+                            {% if product.standard %}
+                            {{ product.standard }} {{ product.standard_number or '' }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{{ product.thread or '-' }}</td>
+                        <td>{{ product.revision }}</td>
+                        <td>
+                            <span class="badge-status badge-{{ product.status }}">{{ product.status|title }}</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('product.view', id=product.id) }}" class="btn btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('product.edit', id=product.id) }}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{{ url_for('product.duplicate', id=product.id) }}" class="btn btn-outline-info" title="Duplicate">
+                                    <i class="bi bi-copy"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="bi bi-box-seam" style="font-size: 2rem;"></i>
+                            <p class="mt-2">No products found</p>
+                            <a href="{{ url_for('product.new') }}" class="btn btn-primary btn-sm">Add First Product</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if products.pages > 1 %}
+    <div class="card-footer">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if products.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('product.index', page=products.prev_num, search=search, status=status, material=material, standard=standard) }}">Previous</a>
+                </li>
+                {% endif %}
+                
+                {% for p in products.iter_pages() %}
+                    {% if p %}
+                    <li class="page-item {% if p == products.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('product.index', page=p, search=search, status=status, material=material, standard=standard) }}">{{ p }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if products.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('product.index', page=products.next_num, search=search, status=status, material=material, standard=standard) }}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
