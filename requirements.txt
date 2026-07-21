@@ -1,3 +1,9 @@
+# =============================================================================
+# NPL Fasteners ERP - Python Dependencies
+# =============================================================================
+# Compatible with Python 3.11 on cPanel shared hosting
+# =============================================================================
+
 # Flask Core
 Flask==3.0.0
 Flask-SQLAlchemy==3.1.1
@@ -14,9 +20,8 @@ cryptography==41.0.7
 WTForms==3.1.1
 email-validator==2.1.0
 
-# PDF Generation
+# PDF Generation (ReportLab - no system dependencies)
 reportlab==4.0.8
-WeasyPrint==60.1
 
 # Excel/CSV Export
 openpyxl==3.1.2
@@ -31,3 +36,14 @@ PyYAML==6.0.1
 
 # API
 flask-cors==4.0.0
+
+# =============================================================================
+# cPanel Installation Notes:
+# 1. Use cPanel's "Setup Python App" feature for easy deployment
+# 2. Or create virtual environment manually:
+#    python3.11 -m venv ~/virtualenv/npl_erp/3.11
+#    source ~/virtualenv/npl_erp/3.11/bin/activate
+#    pip install -r requirements.txt
+# 3. Note: WeasyPrint removed due to system library dependencies
+#    Use only ReportLab for PDF generation on shared hosting
+# =============================================================================

@@ -1,0 +1,11 @@
+# cPanel Deployment Configuration
+# This file is used by cPanel's Git Deployment feature
+
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/username/public_html/npl_erp
+    - /opt/cpanel/ea-php81/root/usr/bin/php /usr/local/bin/composer install --no-dev --optimize-autoloader --working-dir=$DEPLOYPATH 2>/dev/null || true
+    
+# Note: For Python apps, use Setup Python App feature instead
+# This file is mainly for PHP applications or triggering custom hooks

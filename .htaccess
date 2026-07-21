@@ -1,0 +1,48 @@
+# Apache Configuration for Flask on cPanel
+# Enable URL rewriting
+RewriteEngine On
+
+# Set the base directory
+RewriteBase /
+
+# Redirect all requests to the WSGI application
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ application.wsgi/$1 [QSA,L]
+
+# Protect sensitive files
+<FilesMatch "\.(env|pyc|sqlite|db)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect configuration files
+<FilesMatch "^(config|settings)\.py$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Enable compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json
+</IfModule>
+
+# Set caching for static files
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType application/pdf "access plus 1 month"
+</IfModule>
+
+# Protect upload directory
+<Directory "uploads/">
+    <FilesMatch "\.(php|phtml|php3|php4|php5|pl|py|cgi)$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</Directory>
