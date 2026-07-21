@@ -27,9 +27,14 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 're
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE AFTER role;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login DATETIME AFTER updated_at;
 
--- Add admin user
+-- Add indexes
+CREATE INDEX IF NOT EXISTS idx_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_email ON users(email);
+
+-- Add admin user (password: admin123)
 INSERT IGNORE INTO users (username, email, password_hash, full_name, role, is_active)
 VALUES ('admin', 'admin@npl.com', '$2b$12$d3B1dphBAxJfGuLIcbaa1OMq8wElLjof1pPFoEn9v/eC82VFBNbG6', 'Administrator', 'admin', TRUE);
+-- Add sales user (password: sales123)
 INSERT IGNORE INTO users (username, email, password_hash, full_name, role, is_active)
 VALUES ('sales', 'sales@npl.com', '$2b$12$0vR2yNYn3.wmb2epITX8iebCSKdf3h9BXaXutixaubCHvqahqpjfu', 'Sales User', 'sales', TRUE);
 
@@ -132,9 +137,13 @@ CREATE TABLE IF NOT EXISTS products (
     manufacturing_template_id INT,
     status VARCHAR(20) DEFAULT 'active',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_internal_code (internal_code),
+    INDEX idx_product_name (product_name)
 );
 
+-- Rename product_code to internal_code if exists
+ALTER TABLE products CHANGE COLUMN IF EXISTS product_code internal_code VARCHAR(30) NOT NULL UNIQUE;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS internal_code VARCHAR(30) NOT NULL UNIQUE AFTER id;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS weight FLOAT AFTER material;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS standard VARCHAR(50) AFTER weight;
@@ -618,16 +627,16 @@ CREATE TABLE IF NOT EXISTS notifications (
     title VARCHAR(200) NOT NULL,
     message TEXT,
     notification_type VARCHAR(50),
-    entity_type VARCHAR(30),
-    entity_id INT,
+    reference_type VARCHAR(30),
+    reference_id INT,
     is_read BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS notification_type VARCHAR(50) AFTER message;
-ALTER TABLE notifications ADD COLUMN IF NOT EXISTS entity_type VARCHAR(30) AFTER notification_type;
-ALTER TABLE notifications ADD COLUMN IF NOT EXISTS entity_id INT AFTER entity_type;
-ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE AFTER entity_id;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS reference_type VARCHAR(30) AFTER notification_type;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS reference_id INT AFTER reference_type;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE AFTER reference_id;
 
 -- =============================================
 -- ADD INDEXES IF NOT EXISTS
