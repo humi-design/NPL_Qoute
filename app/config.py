@@ -24,8 +24,14 @@ class Config:
     MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH') or 16 * 1024 * 1024)  # 16MB
     ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'webp', 'bmp', 'step', 'stp', 'iges', 'igs', 'dxf', 'dwg', 'zip'}
     
-    # Session
+    # Session Configuration
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
+    SESSION_COOKIE_SECURE = False  # Set True if using HTTPS
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    
+    # CSRF Configuration
+    WTF_CSRF_TIME_LIMIT = None  # No time limit on CSRF tokens
     
     # Company Settings
     COMPANY_NAME = os.environ.get('COMPANY_NAME', 'NPL Fasteners')
