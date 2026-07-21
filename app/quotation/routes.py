@@ -1,5 +1,5 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify, send_file, current_app
-from flask_login import login_required
+from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import func, desc
 from app.quotation import quotation_bp
