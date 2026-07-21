@@ -471,9 +471,14 @@ CREATE TABLE IF NOT EXISTS quotation_items (
     tooling_amortization_qty INT DEFAULT 0,
     material_cost DECIMAL(12,4) DEFAULT 0,
     machining_cost DECIMAL(12,4) DEFAULT 0,
-    other_costs DECIMAL(12,4) DEFAULT 0,
+    vendor_cost DECIMAL(12,4) DEFAULT 0,
+    other_cost DECIMAL(12,4) DEFAULT 0,
+    overhead_amount DECIMAL(12,4) DEFAULT 0,
+    profit_amount DECIMAL(12,4) DEFAULT 0,
     total_cost DECIMAL(12,4) DEFAULT 0,
     margin_percent DECIMAL(6,2) DEFAULT 20,
+    sequence INT DEFAULT 0,
+    notes TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -483,9 +488,14 @@ ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS tooling_cost DECIMAL(12,4) 
 ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS tooling_amortization_qty INT DEFAULT 0 AFTER tooling_cost;
 ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS material_cost DECIMAL(12,4) DEFAULT 0 AFTER tooling_amortization_qty;
 ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS machining_cost DECIMAL(12,4) DEFAULT 0 AFTER material_cost;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS other_costs DECIMAL(12,4) DEFAULT 0 AFTER machining_cost;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS total_cost DECIMAL(12,4) DEFAULT 0 AFTER other_costs;
+ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS vendor_cost DECIMAL(12,4) DEFAULT 0 AFTER machining_cost;
+ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS other_cost DECIMAL(12,4) DEFAULT 0 AFTER vendor_cost;
+ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS overhead_amount DECIMAL(12,4) DEFAULT 0 AFTER other_cost;
+ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS profit_amount DECIMAL(12,4) DEFAULT 0 AFTER overhead_amount;
+ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS total_cost DECIMAL(12,4) DEFAULT 0 AFTER profit_amount;
 ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS margin_percent DECIMAL(6,2) DEFAULT 20 AFTER total_cost;
+ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS sequence INT DEFAULT 0 AFTER margin_percent;
+ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS notes TEXT AFTER sequence;
 
 -- =============================================
 -- QUOTATION OPERATIONS TABLE
