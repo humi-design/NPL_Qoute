@@ -1,6 +1,7 @@
 from flask import render_template, request, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import func, desc
+from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta
 from app.main import main_bp
 from app.models import (
@@ -62,7 +63,9 @@ def dashboard():
     ).scalar() or 0
     
     # Recent quotations
-    recent_quotations = Quotation.query.order_by(
+    recent_quotations = Quotation.query.options(
+        joinedload(Quotation.customer)
+    ).order_by(
         Quotation.created_at.desc()
     ).limit(10).all()
     
@@ -72,7 +75,9 @@ def dashboard():
     ).limit(10).all()
     
     # Recent RFQs
-    recent_rfqs = RFQ.query.order_by(
+    recent_rfqs = RFQ.query.options(
+        joinedload(RFQ.customer)
+    ).order_by(
         RFQ.created_at.desc()
     ).limit(5).all()
     
@@ -183,7 +188,9 @@ def search():
     ]
     
     # Search quotations
-    quotations = Quotation.query.filter(
+    quotations = Quotation.query.options(
+        joinedload(Quotation.customer)
+    ).filter(
         Quotation.quotation_number.ilike(f'%{query}%')
     ).limit(5).all()
     results['quotations'] = [
@@ -192,7 +199,9 @@ def search():
     ]
     
     # Search RFQs
-    rfqs = RFQ.query.filter(
+    rfqs = RFQ.query.options(
+        joinedload(RFQ.customer)
+    ).filter(
         RFQ.rfq_number.ilike(f'%{query}%') |
         RFQ.subject.ilike(f'%{query}%')
     ).limit(5).all()
