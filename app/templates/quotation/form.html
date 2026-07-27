@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-header"><div><h1 class="page-title">{{ 'Edit' if quotation else 'New' }} Quotation</h1></div></div>
-<form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {{ form.hidden_tag() }}
 <div class="row">
 <div class="col-lg-8">
