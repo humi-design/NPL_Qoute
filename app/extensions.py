@@ -27,37 +27,7 @@ def create_app(config_name='default'):
     migrate.init_app(app, db)
     cors.init_app(app)
     
-    # Initialize CSRF (exempt API endpoints)
-    csrf.init_app(app)
-    
-    # Exempt API blueprint from CSRF protection
-    from flask_wtf.csrf import CSRFProtect
-    csrf.exempt(api_bp)
-    
-    # Login manager settings
-    login_manager.login_view = 'auth.login'
-    login_manager.login_message = 'Please log in to access this page.'
-    login_manager.login_message_category = 'info'
-    
-    @login_manager.user_loader
-    def load_user(user_id):
-        from app.models import User
-        return User.query.get(int(user_id))
-    
-    # Context processor for global variables
-    @app.context_processor
-    def inject_user():
-        from flask_login import current_user
-        from sqlalchemy import desc
-        notifications = []
-        if current_user.is_authenticated:
-            from app.models import Notification
-            notifications = Notification.query.filter_by(
-                user_id=current_user.id, is_read=False
-            ).order_by(desc(Notification.created_at)).limit(5).all()
-        return dict(notifications=notifications)
-    
-    # Register blueprints
+    # Register blueprints BEFORE initializing CSRF
     from app.main import main_bp
     from app.auth import auth_bp
     from app.customer import customer_bp
@@ -85,6 +55,35 @@ def create_app(config_name='default'):
     app.register_blueprint(report_bp, url_prefix='/reports')
     app.register_blueprint(setting_bp, url_prefix='/settings')
     app.register_blueprint(api_bp, url_prefix='/api')
+    
+    # Initialize CSRF protection AFTER blueprints are registered
+    csrf.init_app(app)
+    
+    # Exempt API blueprint from CSRF protection
+    csrf.exempt(api_bp)
+    
+    # Login manager settings
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message = 'Please log in to access this page.'
+    login_manager.login_message_category = 'info'
+    
+    @login_manager.user_loader
+    def load_user(user_id):
+        from app.models import User
+        return User.query.get(int(user_id))
+    
+    # Context processor for global variables
+    @app.context_processor
+    def inject_user():
+        from flask_login import current_user
+        from sqlalchemy import desc
+        notifications = []
+        if current_user.is_authenticated:
+            from app.models import Notification
+            notifications = Notification.query.filter_by(
+                user_id=current_user.id, is_read=False
+            ).order_by(desc(Notification.created_at)).limit(5).all()
+        return dict(notifications=notifications)
     
     # Create upload directories
     import os
