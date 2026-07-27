@@ -26,9 +26,10 @@ class Config:
     
     # Session Configuration
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
-    SESSION_COOKIE_SECURE = False  # Set True if using HTTPS
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'true').lower() in ('true', '1', 'yes')  # Default True for HTTPS
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_PATH = os.environ.get('SESSION_COOKIE_PATH', '/')
     
     # CSRF Configuration
     WTF_CSRF_ENABLED = True
