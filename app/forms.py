@@ -228,7 +228,7 @@ class ProcessTemplateForm(FlaskForm):
 
 class RFQForm(FlaskForm):
     rfq_number = StringField('RFQ Number', validators=[DataRequired(), Length(max=30)])
-    customer_id = SelectField('Customer', choices=[('', 'Select Customer')], validate_choice=False)
+    customer_id = SelectField('Customer', choices=[('', 'Select Customer')], validators=[DataRequired()])
     subject = StringField('Subject', validators=[Length(max=300)])
     description = TextAreaField('Description', validators=[Optional()])
     status = SelectField('Status', choices=[
@@ -263,10 +263,10 @@ class RFQItemForm(FlaskForm):
 class QuotationForm(FlaskForm):
     quotation_number = StringField('Quotation Number', validators=[DataRequired(), Length(max=30)])
     quotation_version = StringField('Version', validators=[Length(max=10)])
-    customer_id = SelectField('Customer', choices=[('', 'Select Customer')], validate_choice=False)
+    customer_id = SelectField('Customer', choices=[('', 'Select Customer')], validators=[DataRequired()])
     quotation_date = DateField('Quotation Date', validators=[DataRequired()])
     valid_until = DateField('Valid Until', validators=[Optional()])
-    status = SelectField('Status', choices=[
+    status = SelectField('Status', default='draft', choices=[
         ('draft', 'Draft'),
         ('sent', 'Sent'),
         ('won', 'Won'),

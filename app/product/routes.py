@@ -98,7 +98,7 @@ def new():
             thread=form.thread.data,
             dimensions=form.dimensions.data,
             description=form.description.data,
-            manufacturing_template_id=form.manufacturing_template_id.data.id if form.manufacturing_template_id.data else None,
+            manufacturing_template_id=form.manufacturing_template_id.data if form.manufacturing_template_id.data else None,
             status=form.status.data
         )
         
@@ -191,7 +191,7 @@ def edit(id):
         product.thread = form.thread.data
         product.dimensions = form.dimensions.data
         product.description = form.description.data
-        product.manufacturing_template_id = form.manufacturing_template_id.data.id if form.manufacturing_template_id.data else None
+        product.manufacturing_template_id = form.manufacturing_template_id.data if form.manufacturing_template_id.data else None
         product.status = form.status.data
         
         db.session.commit()

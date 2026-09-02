@@ -102,123 +102,67 @@ def generate_rfq_number(prefix='RFQ'):
     return f"{prefix}-{year}-{new_num:06d}"
 
 
+def _next_code(prefix, attr, model, width=4):
+    """Generate the smallest unique PREFIX-NNNN code not already used..
+    Scans only rows whose attr starts with the exact prefix, so mixed
+    prefixes (e.g. INACT-0001 vs CUST-*) never collide with generated codes..
+    """
+    largest = 0
+    for row in model.query.filter(getattr(model, attr).like(f'{prefix}-%')).all():
+        try:
+            largest = max(largest, int(getattr(row, attr).split('-')[-1]))
+        except (ValueError, TypeError):
+            continue
+    return f"{prefix}-{largest + 1:0{width}d}"
+
+
 def generate_product_code(prefix='PRD'):
     """Generate unique product code."""
-    from app.models import Product, db
-    last_product = Product.query.order_by(Product.id.desc()).first()
-    
-    if last_product:
-        try:
-            last_num = int(last_product.internal_code.split('-')[-1])
-            new_num = last_num + 1
-        except:
-            new_num = 1
-    else:
-        new_num = 1
-    
-    return f"{prefix}-{new_num:05d}"
+    from app.models import Product
+    return _next_code(prefix, "internal_code", Product, width=5)
+
 
 
 def generate_customer_code(prefix='CUST'):
     """Generate unique customer code."""
-    from app.models import Customer, db
-    last_customer = Customer.query.order_by(Customer.id.desc()).first()
-    
-    if last_customer:
-        try:
-            last_num = int(last_customer.customer_code.split('-')[-1])
-            new_num = last_num + 1
-        except:
-            new_num = 1
-    else:
-        new_num = 1
-    
-    return f"{prefix}-{new_num:04d}"
+    from app.models import Customer
+    return _next_code(prefix, "customer_code", Customer, width=4)
+
 
 
 def generate_vendor_code(prefix='VND'):
     """Generate unique vendor code."""
-    from app.models import Vendor, db
-    last_vendor = Vendor.query.order_by(Vendor.id.desc()).first()
-    
-    if last_vendor:
-        try:
-            last_num = int(last_vendor.vendor_code.split('-')[-1])
-            new_num = last_num + 1
-        except:
-            new_num = 1
-    else:
-        new_num = 1
-    
-    return f"{prefix}-{new_num:04d}"
+    from app.models import Vendor
+    return _next_code(prefix, "vendor_code", Vendor, width=4)
+
 
 
 def generate_machine_code(prefix='MCH'):
     """Generate unique machine code."""
-    from app.models import Machine, db
-    last_machine = Machine.query.order_by(Machine.id.desc()).first()
-    
-    if last_machine:
-        try:
-            last_num = int(last_machine.machine_code.split('-')[-1])
-            new_num = last_num + 1
-        except:
-            new_num = 1
-    else:
-        new_num = 1
-    
-    return f"{prefix}-{new_num:03d}"
+    from app.models import Machine
+    return _next_code(prefix, "machine_code", Machine, width=3)
+
 
 
 def generate_material_code(prefix='MAT'):
     """Generate unique material code."""
-    from app.models import Material, db
-    last_material = Material.query.order_by(Material.id.desc()).first()
-    
-    if last_material:
-        try:
-            last_num = int(last_material.material_code.split('-')[-1])
-            new_num = last_num + 1
-        except:
-            new_num = 1
-    else:
-        new_num = 1
-    
-    return f"{prefix}-{new_num:04d}"
+    from app.models import Material
+    return _next_code(prefix, "material_code", Material, width=4)
+
 
 
 def generate_process_code(prefix='PRC'):
     """Generate unique process code."""
-    from app.models import Process, db
-    last_process = Process.query.order_by(Process.id.desc()).first()
-    
-    if last_process:
-        try:
-            last_num = int(last_process.process_code.split('-')[-1])
-            new_num = last_num + 1
-        except:
-            new_num = 1
-    else:
-        new_num = 1
-    
-    return f"{prefix}-{new_num:04d}"
+    from app.models import Process
+    return _next_code(prefix, "process_code", Process, width=4)
+
 
 
 def generate_template_code(prefix='TMP'):
     """Generate unique template code."""
-    from app.models import ProcessTemplate, db
-    last_template = ProcessTemplate.query.order_by(ProcessTemplate.id.desc()).first()
-    
-    if last_template:
-        try:
-            last_num = int(last_template.template_code.split('-')[-1])
-            new_num = last_num + 1
-        except:
-            new_num = 1
-    else:
-        new_num = 1
-    
-    return f"{prefix}-{new_num:04d}"
+    from app.models import ProcessTemplate
+    return _next_code(prefix, "template_code", ProcessTemplate, width=4)
+
 
 
 # ============ Material Calculator ============

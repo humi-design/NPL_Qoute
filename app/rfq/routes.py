@@ -36,7 +36,7 @@ def new():
     """Create new RFQ."""
     form = RFQForm()
     form.rfq_number.data = generate_rfq_number()
-    all_customers = Customer.query.all()
+    all_customers = Customer.query.filter_by(is_active=True).all()
     form.customer_id.choices = [('', 'Select Customer')]
     form.customer_id.choices += [
         (str(c.id),
@@ -47,12 +47,12 @@ def new():
     # Pre-select customer if provided
     customer_id = request.args.get('customer', type=int)
     if customer_id:
-        form.customer_id.data = Customer.query.get(customer_id)
+        form.customer_id.data = str(customer_id)
     
     if form.validate_on_submit():
         rfq = RFQ(
             rfq_number=form.rfq_number.data,
-            customer_id=form.customer_id.data.id,
+            customer_id=int(form.customer_id.data),
             subject=form.subject.data,
             description=form.description.data,
             status=form.status.data,
@@ -104,7 +104,7 @@ def edit(id):
     """Edit RFQ."""
     rfq = RFQ.query.get_or_404(id)
     form = RFQForm(obj=rfq)
-    all_customers = Customer.query.all()
+    all_customers = Customer.query.filter_by(is_active=True).all()
     form.customer_id.choices = [('', 'Select Customer')]
     form.customer_id.choices += [
         (str(c.id),
@@ -113,7 +113,7 @@ def edit(id):
     ]
     
     if form.validate_on_submit():
-        rfq.customer_id = form.customer_id.data.id
+        rfq.customer_id = int(form.customer_id.data)
         rfq.subject = form.subject.data
         rfq.description = form.description.data
         rfq.status = form.status.data
