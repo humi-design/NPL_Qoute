@@ -67,6 +67,13 @@ def new():
     """Create new product."""
     form = ProductForm()
     form.internal_code.data = generate_product_code()
+    template_items = ProcessTemplate.query.all()
+    form.manufacturing_template_id.choices = [('', 'Select Template')]
+    form.manufacturing_template_id.choices += [
+        (str(t.id),
+         str(t.template_code) + ' - ' + str(t.template_name))
+        for t in template_items
+    ]
     
     # Check if coming from search/duplicate
     duplicate_from = request.args.get('duplicate')
@@ -154,6 +161,13 @@ def edit(id):
     """Edit product."""
     product = Product.query.get_or_404(id)
     form = ProductForm(obj=product)
+    template_items = ProcessTemplate.query.all()
+    form.manufacturing_template_id.choices = [('', 'Select Template')]
+    form.manufacturing_template_id.choices += [
+        (str(t.id),
+         str(t.template_code) + ' - ' + str(t.template_name))
+        for t in template_items
+    ]
     
     if form.validate_on_submit():
         # Track changes

@@ -21,6 +21,20 @@ def new():
     """Create new process."""
     form = ProcessForm()
     form.process_code.data = generate_process_code()
+    all_machines = Machine.query.all()
+    form.machine_id.choices = [('', 'Select Machine')]
+    form.machine_id.choices += [
+        (str(m.id),
+         str(m.machine_code) + ' - ' + str(m.machine_name))
+        for m in all_machines
+    ]
+    all_vendors = Vendor.query.all()
+    form.vendor_id.choices = [('', 'Select Vendor')]
+    form.vendor_id.choices += [
+        (str(v.id),
+         str(v.vendor_code) + ' - ' + str(v.vendor_name))
+        for v in all_vendors
+    ]
     
     if form.validate_on_submit():
         process = Process(
@@ -55,6 +69,20 @@ def edit(id):
     """Edit process."""
     process = Process.query.get_or_404(id)
     form = ProcessForm(obj=process)
+    all_machines = Machine.query.all()
+    form.machine_id.choices = [('', 'Select Machine')]
+    form.machine_id.choices += [
+        (str(m.id),
+         str(m.machine_code) + ' - ' + str(m.machine_name))
+        for m in all_machines
+    ]
+    all_vendors = Vendor.query.all()
+    form.vendor_id.choices = [('', 'Select Vendor')]
+    form.vendor_id.choices += [
+        (str(v.id),
+         str(v.vendor_code) + ' - ' + str(v.vendor_name))
+        for v in all_vendors
+    ]
     
     if form.validate_on_submit():
         process.process_name = form.process_name.data
