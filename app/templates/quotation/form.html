@@ -8,7 +8,7 @@
 <div class="card mb-4"><div class="card-header"><span>Quotation Details</span></div><div class="card-body">
 <div class="row mb-3">
 <div class="col-md-4">{{ form.quotation_number.label(class="form-label") }}{{ form.quotation_number(class="form-control", readonly=quotation) }}</div>
-<div class="col-md-4">{{ form.customer_id.label(class="form-label") }}{{ form.customer_id(class="form-select") }}</div>
+<div class="col-md-4">{{ form.customer_id.label(class="form-label") }}{{ form.customer_id(class="form-select") }}{% if form.customer_id.errors %}<div class="text-danger small mt-1">{{ form.customer_id.errors[0] }}</div>{% endif %}</div>
 <div class="col-md-4">{{ form.currency.label(class="form-label") }}{{ form.currency(class="form-select") }}</div>
 </div>
 <div class="row mb-3">

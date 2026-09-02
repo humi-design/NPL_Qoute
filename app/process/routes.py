@@ -42,8 +42,8 @@ def new():
             process_name=form.process_name.data,
             process_type=form.process_type.data,
             description=form.description.data,
-            machine_id=form.machine_id.data.id if form.machine_id.data else None,
-            vendor_id=form.vendor_id.data.id if form.vendor_id.data else None,
+            machine_id=form.machine_id.data if form.machine_id.data else None,
+            vendor_id=form.vendor_id.data if form.vendor_id.data else None,
             department=form.department.data,
             setup_time=form.setup_time.data,
             cycle_time=form.cycle_time.data,
@@ -88,8 +88,8 @@ def edit(id):
         process.process_name = form.process_name.data
         process.process_type = form.process_type.data
         process.description = form.description.data
-        process.machine_id = form.machine_id.data.id if form.machine_id.data else None
-        process.vendor_id = form.vendor_id.data.id if form.vendor_id.data else None
+        process.machine_id = form.machine_id.data if form.machine_id.data else None
+        process.vendor_id = form.vendor_id.data if form.vendor_id.data else None
         process.department = form.department.data
         process.setup_time = form.setup_time.data
         process.cycle_time = form.cycle_time.data

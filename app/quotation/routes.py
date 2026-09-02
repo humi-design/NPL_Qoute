@@ -47,7 +47,7 @@ def new():
     """Create new quotation."""
     form = QuotationForm()
     form.quotation_number.data = generate_quotation_number()
-    all_customers = Customer.query.all()
+    all_customers = Customer.query.filter_by(is_active=True).all()
     form.customer_id.choices = [('', 'Select Customer')]
     form.customer_id.choices += [
         (str(c.id),
@@ -63,7 +63,7 @@ def new():
     if customer_id:
         customer = Customer.query.get(customer_id)
         if customer:
-            form.customer_id.data = customer
+            form.customer_id.data = str(customer.id)
             form.billing_address.data = customer.billing_address
             form.shipping_address.data = customer.shipping_address
             form.payment_terms.data = customer.payment_terms
@@ -76,7 +76,7 @@ def new():
         quotation = Quotation(
             quotation_number=form.quotation_number.data,
             quotation_version='V1',
-            customer_id=form.customer_id.data.id,
+            customer_id=int(form.customer_id.data),
             quotation_date=form.quotation_date.data,
             valid_until=form.valid_until.data,
             status='draft',
@@ -147,7 +147,7 @@ def edit(id):
         return redirect(url_for('quotation.view', id=id))
     
     form = QuotationForm(obj=quotation)
-    all_customers = Customer.query.all()
+    all_customers = Customer.query.filter_by(is_active=True).all()
     form.customer_id.choices = [('', 'Select Customer')]
     form.customer_id.choices += [
         (str(c.id),
@@ -156,7 +156,7 @@ def edit(id):
     ]
     
     if form.validate_on_submit():
-        quotation.customer_id = form.customer_id.data.id
+        quotation.customer_id = int(form.customer_id.data)
         quotation.quotation_date = form.quotation_date.data
         quotation.valid_until = form.valid_until.data
         quotation.priority = form.priority.data
