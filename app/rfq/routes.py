@@ -36,6 +36,13 @@ def new():
     """Create new RFQ."""
     form = RFQForm()
     form.rfq_number.data = generate_rfq_number()
+    all_customers = Customer.query.all()
+    form.customer_id.choices = [('', 'Select Customer')]
+    form.customer_id.choices += [
+        (str(c.id),
+         str(c.customer_code) + ' - ' + str(c.company_name))
+        for c in all_customers
+    ]
     
     # Pre-select customer if provided
     customer_id = request.args.get('customer', type=int)
@@ -97,6 +104,13 @@ def edit(id):
     """Edit RFQ."""
     rfq = RFQ.query.get_or_404(id)
     form = RFQForm(obj=rfq)
+    all_customers = Customer.query.all()
+    form.customer_id.choices = [('', 'Select Customer')]
+    form.customer_id.choices += [
+        (str(c.id),
+         str(c.customer_code) + ' - ' + str(c.company_name))
+        for c in all_customers
+    ]
     
     if form.validate_on_submit():
         rfq.customer_id = form.customer_id.data.id

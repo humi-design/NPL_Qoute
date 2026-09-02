@@ -47,6 +47,13 @@ def new():
     """Create new quotation."""
     form = QuotationForm()
     form.quotation_number.data = generate_quotation_number()
+    all_customers = Customer.query.all()
+    form.customer_id.choices = [('', 'Select Customer')]
+    form.customer_id.choices += [
+        (str(c.id),
+         str(c.customer_code) + ' - ' + str(c.company_name))
+        for c in all_customers
+    ]
     form.quotation_date.data = datetime.now().date()
     form.valid_until.data = (datetime.now() + timedelta(days=30)).date()
     form.currency.data = 'INR'
@@ -140,6 +147,13 @@ def edit(id):
         return redirect(url_for('quotation.view', id=id))
     
     form = QuotationForm(obj=quotation)
+    all_customers = Customer.query.all()
+    form.customer_id.choices = [('', 'Select Customer')]
+    form.customer_id.choices += [
+        (str(c.id),
+         str(c.customer_code) + ' - ' + str(c.company_name))
+        for c in all_customers
+    ]
     
     if form.validate_on_submit():
         quotation.customer_id = form.customer_id.data.id
