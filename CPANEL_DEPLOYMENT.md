@@ -69,15 +69,27 @@ Before starting, ensure you have:
    FLASK_ENV=production
    ```
 
-### Step 6: Initialize Database
+### Step 6: Initialize / Upgrade Database
 
-1. SSH into your server or use cPanel Terminal
-2. Run:
-   ```bash
-   cd ~/npl_erp
-   source ~/virtualenv/npl_erp/3.11/bin/activate
-   python seed_data.py
-   ```
+**Fresh database** — load the schema, then the additive migration:
+
+```bash
+cd ~/npl_erp
+source ~/virtualenv/npl_erp/3.11/bin/activate
+python seed_data.py          # creates tables + demo data
+```
+
+**Existing database (upgrading an install that is already live)** — run the
+additive upgrader. New code needs tables the old database does not have, and
+without this step pages fail with `no such table` (HTTP 500):
+
+```bash
+cd ~/npl_erp
+source ~/virtualenv/npl_erp/3.11/bin/activate
+python upgrade_db.py
+```
+
+This is safe to run repeatedly and never deletes or rewrites existing rows.
 
 ### Step 7: Restart Application
 

@@ -213,8 +213,15 @@ def create_app(config_name='default'):
                     notification_link=notification_link,
                     company=company)
     
-    # Create upload directories
+    # Create upload directories.
+    #
+    # These are anchored to the project root (the parent of this package) rather
+    # than the process working directory, because Passenger/mod_wsgi do not
+    # guarantee the CWD is the application root. Creation is best-effort: a
+    # read-only or quota-limited document root must not stop the whole WSGI
+    # application from loading, which would take every URL on the site down.
     import os
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     upload_folders = [
         'uploads/customers',
         'uploads/products',
@@ -231,6 +238,10 @@ def create_app(config_name='default'):
         'uploads/documents'
     ]
     for folder in upload_folders:
-        os.makedirs(folder, exist_ok=True)
-    
+        try:
+            os.makedirs(os.path.join(project_root, folder), exist_ok=True)
+        except OSError as exc:
+            app.logger.warning('Could not create upload directory %s: %s',
+                               folder, exc)
+
     return app
