@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Final Inspection &amp; Packaging - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Live Operations</li>
+<li class="breadcrumb-item active">Final Inspection &amp; Packaging</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Final Inspection &amp; Packaging</h1>
+        <p class="page-subtitle">Packaging, final accepted quantity and warehouse receipt through to completion</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    {% for label, key in [('Packed','packed'),('Warehoused','warehoused'),('Dispatched','dispatched')] %}
+    <div class="col-6 col-md-4">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">{{ label }}</div>
+            <h4 class="mb-0">{{ summary[key] }}</h4>
+        </div></div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Order</label>
+                <select name="order_id" class="form-select">
+                    <option value="">All</option>
+                    {% for o in orders %}
+                    <option value="{{ o.id }}" {% if order_id == o.id %}selected{% endif %}>{{ o.order_number }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All</option>
+                    {% for s in ['packed','warehoused','dispatched'] %}
+                    <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% set sort_qs = {'order_id': order_id, 'status': status, 'dir': 'asc' if dir == 'desc' else 'desc', 'per_page': per_page} %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th><a href="{{ url_for('orders.packaging', sort='date', **sort_qs) }}">Date</a></th>
+                        <th>Type</th>
+                        <th class="text-end"><a href="{{ url_for('orders.packaging', sort='packed', **sort_qs) }}">Packed</a></th>
+                        <th class="text-end"><a href="{{ url_for('orders.packaging', sort='accepted', **sort_qs) }}">Accepted</a></th>
+                        <th class="text-end">Rejected</th>
+                        <th>Warehouse Receipt</th>
+                        <th>Location</th>
+                        <th><a href="{{ url_for('orders.packaging', sort='status', **sort_qs) }}">Status</a></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for rec in records %}
+                    <tr>
+                        <td><a href="{{ url_for('orders.view_order', id=rec.order_id) }}">{{ rec.order.order_number }}</a></td>
+                        <td>{{ rec.packaging_date }}</td>
+                        <td>{{ (rec.packaging_type or '-')|title }}</td>
+                        <td class="text-end">{{ rec.quantity_packed }}</td>
+                        <td class="text-end">{{ rec.quantity_accepted }}</td>
+                        <td class="text-end {% if rec.quantity_rejected %}text-danger{% endif %}">{{ rec.quantity_rejected }}</td>
+                        <td>{{ rec.warehouse_receipt_number or '—' }}
+                            {% if rec.warehouse_receipt_date %}<div class="text-muted small">{{ rec.warehouse_receipt_date }}</div>{% endif %}</td>
+                        <td>{{ rec.location or '-' }}</td>
+                        <td>
+                            {% if rec.status == 'dispatched' %}<span class="badge-status badge-won">Dispatched</span>
+                            {% elif rec.status == 'warehoused' %}<span class="badge-status badge-sent">Warehoused</span>
+                            {% else %}<span class="badge-status badge-pending">Packed</span>{% endif %}
+                        </td>
+                        <td class="text-end"><a href="{{ url_for('orders.edit_packaging', rec_id=rec.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a></td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="10" class="text-center text-muted py-4">No packaging records yet.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if pagination.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ pagination.items|length }} of {{ pagination.total }} records</small>
+        <nav><ul class="pagination mb-0">
+            {% if pagination.has_prev %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('orders.packaging', page=pagination.prev_num, order_id=order_id, status=status, sort=sort, dir=dir, per_page=per_page) }}">Previous</a></li>
+            {% endif %}
+            {% for p in pagination.iter_pages() %}
+                {% if p %}
+                <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('orders.packaging', page=p, order_id=order_id, status=status, sort=sort, dir=dir, per_page=per_page) }}">{{ p }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            {% if pagination.has_next %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('orders.packaging', page=pagination.next_num, order_id=order_id, status=status, sort=sort, dir=dir, per_page=per_page) }}">Next</a></li>
+            {% endif %}
+        </ul></nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

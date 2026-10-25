@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Locations - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Inventory</li>
+<li class="breadcrumb-item active">Locations</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Stock Locations</h1>
+        <p class="page-subtitle">Raw-material store, WIP, subcontractor sites, finished-goods store, rejected and scrap</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('inventory.new_location') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Location</a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small">Type</label>
+                <select name="kind" class="form-select">
+                    <option value="">All types</option>
+                    {% for k in kinds %}
+                    <option value="{{ k }}" {% if kind == k %}selected{% endif %}>{{ k.replace('_', ' ')|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2"><button class="btn btn-outline-secondary w-100">Filter</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light"><tr>
+                <th>Code</th><th>Name</th><th>Type</th><th>Vendor</th>
+                <th>Address</th><th>Active</th><th class="text-end">Actions</th></tr></thead>
+            <tbody>
+                {% for l in pagination.items %}
+                <tr>
+                    <td class="fw-semibold">{{ l.code }}</td>
+                    <td>{{ l.name }}</td>
+                    <td><span class="badge bg-secondary">{{ l.kind.replace('_', ' ') }}</span></td>
+                    <td>{{ l.vendor.vendor_name if l.vendor else '—' }}</td>
+                    <td class="small text-muted">{{ l.address or '—' }}</td>
+                    <td>{% if l.is_active %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                    <td class="text-end">
+                        <a href="{{ url_for('inventory.edit_location', id=l.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                        <form method="POST" action="{{ url_for('inventory.delete_location', id=l.id) }}"
+                              class="d-inline" onsubmit="return confirm('Delete this location?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No locations yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

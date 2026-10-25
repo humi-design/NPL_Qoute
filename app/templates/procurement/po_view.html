@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}{{ po.po_number }} - Purchase Order - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Purchasing</li>
+<li class="breadcrumb-item"><a href="{{ url_for('procurement.purchase_orders') }}">Purchase Orders</a></li>
+<li class="breadcrumb-item active">{{ po.po_number }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ po.po_number }}</h1>
+        <p class="page-subtitle">
+            {% if po.supplier %}
+            <a href="{{ url_for('supplier.view', id=po.supplier.id) }}">{{ po.supplier.company_name }}</a>
+            {% endif %}
+            <span class="badge bg-secondary-subtle text-secondary-emphasis ms-2">{{ po.status.replace('_',' ')|title }}</span>
+            {% if po.is_overdue %}<span class="badge bg-danger ms-1">{{ po.days_overdue }}d overdue</span>{% endif %}
+        </p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('procurement.edit_purchase_order', id=po.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+        {% if po.is_open %}
+        <form method="POST" action="{{ url_for('procurement.set_po_status', id=po.id, status='cancelled') }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-danger" data-confirm="Cancel this purchase order?">
+                <i class="bi bi-x-circle"></i> Cancel PO
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{# ============ Progress tiles ============ #}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3 col-xl-2"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Ordered</div>
+        <div class="h4 mb-0">{{ po.ordered_quantity }}</div>
+        <div class="small text-muted">{{ po.lines.count() }} line(s)</div>
+    </div></div></div>
+    <div class="col-6 col-md-3 col-xl-2"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Received</div>
+        <div class="h4 mb-0">{{ po.received_quantity }}</div>
+        <div class="small text-muted">{{ po.completion_percent }}% complete</div>
+    </div></div></div>
+    <div class="col-6 col-md-3 col-xl-2"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Accepted</div>
+        <div class="h4 mb-0 text-success">{{ po.accepted_quantity }}</div>
+        <div class="small text-muted">received &minus; rejected</div>
+    </div></div></div>
+    <div class="col-6 col-md-3 col-xl-2"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Rejected</div>
+        <div class="h4 mb-0 {% if po.rejected_quantity %}text-danger{% endif %}">{{ po.rejected_quantity }}</div>
+        <div class="small text-muted">failed inspection</div>
+    </div></div></div>
+    <div class="col-6 col-md-3 col-xl-2"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Pending</div>
+        <div class="h4 mb-0">{{ po.pending_quantity }}</div>
+        <div class="small text-muted">outstanding qty</div>
+    </div></div></div>
+    <div class="col-6 col-md-3 col-xl-2"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Order Value</div>
+        <div class="h4 mb-0">{{ "{:,.0f}".format(po.total_value) }}</div>
+        <div class="small text-muted">{{ po.currency }}</div>
+    </div></div></div>
+</div>
+
+{# ============ Lines ============ #}
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Order Lines</span>
+        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#addLine">
+            <i class="bi bi-plus-lg"></i> Add Line
+        </button>
+    </div>
+    <div class="collapse" id="addLine">
+        <div class="card-body border-bottom">
+            <form method="POST" action="{{ url_for('procurement.add_po_line', id=po.id) }}">
+                {{ line_form.hidden_tag() }}
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label small">Material</label>
+                        {{ line_form.material_id(class="form-select form-select-sm") }}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Description</label>
+                        {{ line_form.description(class="form-control form-control-sm") }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Grade</label>
+                        {{ line_form.grade(class="form-control form-control-sm") }}
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label small">Qty</label>
+                        {{ line_form.quantity_ordered(class="form-control form-control-sm", step="0.01") }}
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label small">Unit</label>
+                        {{ line_form.unit(class="form-select form-select-sm") }}
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label small">Rate</label>
+                        {{ line_form.rate(class="form-control form-control-sm", step="0.01") }}
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-sm btn-primary mt-2"><i class="bi bi-check-lg"></i> Add</button>
+            </form>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr>
+                    <th>Material / Description</th><th>Grade</th>
+                    <th class="text-end">Ordered</th><th class="text-end">Received</th>
+                    <th class="text-end">Accepted</th><th class="text-end">Rejected</th>
+                    <th class="text-end">Pending</th><th class="text-end">Rate</th><th></th>
+                </tr></thead>
+                <tbody>
+                {% for l in po.lines.all() %}
+                    <tr>
+                        <td>
+                            {% if l.material %}
+                            <a href="{{ url_for('material.view', id=l.material.id) }}">{{ l.material.material_name }}</a>
+                            {% else %}{{ l.description or '-' }}{% endif %}
+                        </td>
+                        <td>{{ l.grade or '-' }}</td>
+                        <td class="text-end">{{ l.quantity_ordered|round(3) }} {{ l.unit }}</td>
+                        <td class="text-end">{{ l.received_quantity|round(3) }}</td>
+                        <td class="text-end text-success">{{ l.accepted_quantity|round(3) }}</td>
+                        <td class="text-end {% if l.rejected_quantity %}text-danger{% endif %}">{{ l.rejected_quantity|round(3) }}</td>
+                        <td class="text-end">{{ l.pending_quantity|round(3) }}</td>
+                        <td class="text-end">{{ l.rate }} {{ l.rate_unit }}</td>
+                        <td class="text-end">
+                            <form method="POST" action="{{ url_for('procurement.delete_po_line', id=po.id, line_id=l.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-outline-danger" data-confirm="Remove this line?"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="9" class="text-center text-muted py-3">No lines yet</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# ============ Receipts (GRN) ============ #}
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Goods Receipts ({{ po.receipts.count() }})</span>
+        <button class="btn btn-sm btn-outline-success" data-bs-toggle="collapse" data-bs-target="#addReceipt">
+            <i class="bi bi-box-arrow-in-down"></i> Record Receipt
+        </button>
+    </div>
+    <div class="collapse" id="addReceipt">
+        <div class="card-body border-bottom">
+            <form method="POST" action="{{ url_for('procurement.add_receipt', id=po.id) }}">
+                {{ receipt_form.hidden_tag() }}
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label small">Receipt Date *</label>
+                        {{ receipt_form.receipt_date(class="form-control form-control-sm", type="date", value=today) }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Supplier Challan / DC No.</label>
+                        {{ receipt_form.supplier_document(class="form-control form-control-sm") }}
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small">Notes</label>
+                        {{ receipt_form.notes(class="form-control form-control-sm") }}
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-sm btn-success mt-2"><i class="bi bi-check-lg"></i> Create Receipt</button>
+            </form>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>GRN</th><th>Date</th><th>Challan</th><th class="text-end">Received</th><th class="text-end">Rejected</th><th></th></tr></thead>
+            <tbody>
+            {% for r in po.receipts.all() %}
+                <tr>
+                    <td><strong>{{ r.receipt_number }}</strong></td>
+                    <td>{{ r.receipt_date }}</td>
+                    <td>{{ r.supplier_document or '-' }}</td>
+                    <td class="text-end">{{ r.received_quantity|round(3) }}</td>
+                    <td class="text-end">{{ r.rejected_quantity|round(3) }}</td>
+                    <td class="text-end"><a href="{{ url_for('procurement.view_receipt', id=r.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-3">No receipts yet</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

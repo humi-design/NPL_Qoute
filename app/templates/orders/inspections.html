@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Quality Inspection - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Live Operations</li>
+<li class="breadcrumb-item active">Quality Inspection</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Quality Inspection</h1>
+        <p class="page-subtitle">Incoming, in-process and final inspections linked to orders, lots and operations</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    {% for label, key in [('Pending','pending'),('Passed','passed'),('Failed','failed'),('Partial','partial')] %}
+    <div class="col-6 col-md-3">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">{{ label }}</div>
+            <h4 class="mb-0 {% if key == 'failed' and summary[key] %}text-danger{% endif %}">{{ summary[key] }}</h4>
+        </div></div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small">Search</label>
+                <input type="text" class="form-control" name="search"
+                       placeholder="Inspection no, order, criteria..." value="{{ search }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Type</label>
+                <select name="type" class="form-select">
+                    <option value="">All</option>
+                    {% for t in ['incoming','in_process','final'] %}
+                    <option value="{{ t }}" {% if inspection_type == t %}selected{% endif %}>{{ t.replace('_',' ')|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Result</label>
+                <select name="result" class="form-select">
+                    <option value="">All</option>
+                    {% for r in ['pending','passed','failed','partial'] %}
+                    <option value="{{ r }}" {% if result == r %}selected{% endif %}>{{ r|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Order</label>
+                <select name="order_id" class="form-select">
+                    <option value="">All</option>
+                    {% for o in orders %}
+                    <option value="{{ o.id }}" {% if order_id == o.id %}selected{% endif %}>{{ o.order_number }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% set sort_qs = {'search': search, 'type': inspection_type, 'result': result, 'order_id': order_id, 'dir': 'asc' if dir == 'desc' else 'desc', 'per_page': per_page} %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th><a href="{{ url_for('orders.inspections', sort='number', **sort_qs) }}">Number</a></th>
+                        <th>Order</th>
+                        <th><a href="{{ url_for('orders.inspections', sort='type', **sort_qs) }}">Type</a></th>
+                        <th><a href="{{ url_for('orders.inspections', sort='date', **sort_qs) }}">Date</a></th>
+                        <th>Tolerance</th>
+                        <th class="text-end">Insp</th>
+                        <th class="text-end">Acc</th>
+                        <th class="text-end">Rej</th>
+                        <th class="text-end">Rework</th>
+                        <th><a href="{{ url_for('orders.inspections', sort='result', **sort_qs) }}">Result</a></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for insp in inspections %}
+                    <tr>
+                        <td><strong>{{ insp.inspection_number }}</strong></td>
+                        <td><a href="{{ url_for('orders.view_order', id=insp.order_id) }}">{{ insp.order.order_number }}</a></td>
+                        <td>{{ insp.inspection_type.replace('_',' ')|title }}
+                            {% if insp.operation %}<div class="text-muted small">#{{ insp.operation.sequence }} {{ insp.operation.operation_name }}</div>{% endif %}
+                            {% if insp.lot %}<div class="text-muted small">Lot {{ insp.lot.lot_number }}</div>{% endif %}
+                        </td>
+                        <td>{{ insp.inspection_date }}</td>
+                        <td>{{ insp.tolerance or '-' }}</td>
+                        <td class="text-end">{{ insp.quantity_inspected }}</td>
+                        <td class="text-end">{{ insp.quantity_accepted }}</td>
+                        <td class="text-end {% if insp.quantity_rejected %}text-danger{% endif %}">{{ insp.quantity_rejected }}</td>
+                        <td class="text-end">{{ insp.quantity_rework }}</td>
+                        <td>
+                            {% if insp.result == 'passed' %}<span class="badge-status badge-won">Passed</span>
+                            {% elif insp.result == 'failed' %}<span class="badge-status badge-lost">Failed</span>
+                            {% elif insp.result == 'partial' %}<span class="badge-status badge-sent">Partial</span>
+                            {% else %}<span class="badge-status badge-pending">Pending</span>{% endif %}
+                        </td>
+                        <td class="text-end"><a href="{{ url_for('orders.edit_inspection', insp_id=insp.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a></td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="11" class="text-center text-muted py-4">No inspections recorded.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if pagination.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ pagination.items|length }} of {{ pagination.total }} inspections</small>
+        <nav><ul class="pagination mb-0">
+            {% if pagination.has_prev %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('orders.inspections', page=pagination.prev_num, search=search, type=inspection_type, result=result, order_id=order_id, sort=sort, dir=dir, per_page=per_page) }}">Previous</a></li>
+            {% endif %}
+            {% for p in pagination.iter_pages() %}
+                {% if p %}
+                <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('orders.inspections', page=p, search=search, type=inspection_type, result=result, order_id=order_id, sort=sort, dir=dir, per_page=per_page) }}">{{ p }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            {% if pagination.has_next %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('orders.inspections', page=pagination.next_num, search=search, type=inspection_type, result=result, order_id=order_id, sort=sort, dir=dir, per_page=per_page) }}">Next</a></li>
+            {% endif %}
+        </ul></nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

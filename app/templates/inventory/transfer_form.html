@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}New Stock Transfer - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Inventory</li>
+<li class="breadcrumb-item"><a href="{{ url_for('inventory.transfers') }}">Transfers</a></li>
+<li class="breadcrumb-item active">New</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1 class="page-title">New Stock Transfer</h1></div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" class="row g-3">
+            {{ form.hidden_tag() }}
+            <div class="col-md-3">
+                {{ form.transfer_date.label(class="form-label") }}
+                {{ form.transfer_date(class="form-control") }}
+            </div>
+            <div class="col-md-4">
+                {{ form.from_location_id.label(class="form-label") }}
+                {{ form.from_location_id(class="form-select") }}
+            </div>
+            <div class="col-md-4">
+                {{ form.to_location_id.label(class="form-label") }}
+                {{ form.to_location_id(class="form-select") }}
+            </div>
+            <div class="col-md-5">
+                {{ form.material_lot_id.label(class="form-label") }}
+                {{ form.material_lot_id(class="form-select") }}
+            </div>
+            <div class="col-md-4">
+                {{ form.order_id.label(class="form-label") }}
+                {{ form.order_id(class="form-select") }}
+            </div>
+            <div class="col-md-3">
+                {{ form.status.label(class="form-label") }}
+                {{ form.status(class="form-select") }}
+            </div>
+            <div class="col-md-3">
+                {{ form.quantity.label(class="form-label") }}
+                {{ form.quantity(class="form-control") }}
+            </div>
+            <div class="col-md-2">
+                {{ form.unit.label(class="form-label") }}
+                {{ form.unit(class="form-control") }}
+            </div>
+            <div class="col-md-4">
+                {{ form.reference.label(class="form-label") }}
+                {{ form.reference(class="form-control") }}
+            </div>
+            <div class="col-12">
+                {{ form.notes.label(class="form-label") }}
+                {{ form.notes(class="form-control", rows=2) }}
+            </div>
+            <div class="col-12">
+                <button class="btn btn-primary">Record Transfer</button>
+                <a href="{{ url_for('inventory.transfers') }}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

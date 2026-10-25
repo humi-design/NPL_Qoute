@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Dispatches - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Live Operations</li>
+<li class="breadcrumb-item active">Dispatches</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Dispatch Register</h1>
+        <p class="page-subtitle">Shipments to customers with packing references, dispatch dates and delivery status</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('orders.export_dispatches', status=status) }}" class="btn btn-outline-primary">
+            <i class="bi bi-download"></i> Export</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    {% for label, key in [('Prepared','prepared'),('In Transit','in_transit'),
+                          ('Delivered','delivered'),('Pending Delivery','pending_delivery')] %}
+    <div class="col-6 col-md-3">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">{{ label }}</div>
+            <h4 class="mb-0">{{ summary[key] }}</h4>
+        </div></div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Order</label>
+                <select name="order_id" class="form-select">
+                    <option value="">All</option>
+                    {% for o in orders %}
+                    <option value="{{ o.id }}" {% if order_id == o.id %}selected{% endif %}>{{ o.order_number }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All</option>
+                    {% for s in ['prepared','dispatched','in_transit','delivered','returned','cancelled'] %}
+                    <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s.replace('_', ' ')|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Delivery</label>
+                <select name="delivery" class="form-select">
+                    <option value="">All</option>
+                    {% for s in ['pending','partial','delivered'] %}
+                    <option value="{{ s }}" {% if delivery == s %}selected{% endif %}>{{ s|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% set sort_qs = {'order_id': order_id, 'status': status, 'delivery': delivery,
+                  'dir': 'asc' if dir == 'desc' else 'desc', 'per_page': per_page} %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th><a href="{{ url_for('orders.dispatches', sort='number', **sort_qs) }}">Dispatch #</a></th>
+                        <th><a href="{{ url_for('orders.dispatches', sort='date', **sort_qs) }}">Date</a></th>
+                        <th>Order</th>
+                        <th><a href="{{ url_for('orders.dispatches', sort='customer', **sort_qs) }}">Customer</a></th>
+                        <th class="text-end">Qty Shipped</th>
+                        <th>Shipment Ref</th>
+                        <th>Invoice</th>
+                        <th><a href="{{ url_for('orders.dispatches', sort='status', **sort_qs) }}">Status</a></th>
+                        <th>Delivery</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in dispatches %}
+                    <tr style="cursor:pointer;" onclick="window.location='{{ url_for('orders.view_dispatch', id=d.id) }}'">
+                        <td><strong>{{ d.dispatch_number }}</strong></td>
+                        <td>{{ d.dispatch_date }}</td>
+                        <td>{{ d.order.order_number if d.order else '—' }}</td>
+                        <td>{{ d.customer.company_name if d.customer else '—' }}</td>
+                        <td class="text-end fw-semibold">{{ d.quantity_shipped }}</td>
+                        <td class="small">{{ d.shipment_reference or '—' }}</td>
+                        <td class="small">{{ d.invoice_number or '—' }}</td>
+                        <td>
+                            {% if d.status == 'delivered' %}<span class="badge-status badge-won">Delivered</span>
+                            {% elif d.status == 'cancelled' %}<span class="badge-status badge-cancelled">Cancelled</span>
+                            {% elif d.status == 'in_transit' %}<span class="badge-status badge-sent">In Transit</span>
+                            {% elif d.status == 'dispatched' %}<span class="badge-status badge-info">Dispatched</span>
+                            {% else %}<span class="badge-status badge-draft">{{ d.status|title }}</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if d.delivery_status == 'delivered' %}<span class="badge bg-success">Delivered</span>
+                            {% elif d.delivery_status == 'partial' %}<span class="badge bg-warning text-dark">Partial</span>
+                            {% else %}<span class="badge bg-secondary">Pending</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="9" class="text-center text-muted py-4">
+                        No dispatches recorded. Create one from an order's detail page.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if pagination and pagination.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">{{ pagination.total }} dispatch(es)</small>
+        <nav><ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('orders.dispatches', page=pagination.prev_num, **sort_qs) }}">Prev</a></li>
+            <li class="page-item disabled"><span class="page-link">{{ pagination.page }} / {{ pagination.pages }}</span></li>
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('orders.dispatches', page=pagination.next_num, **sort_qs) }}">Next</a></li>
+        </ul></nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

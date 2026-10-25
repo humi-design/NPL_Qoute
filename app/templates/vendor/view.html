@@ -1,17 +1,646 @@
 {% extends "base.html" %}
+
+{% block title %}{{ vendor.vendor_name }} - Vendors - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('vendor.index') }}">Vendors</a></li>
+<li class="breadcrumb-item active">{{ vendor.vendor_code }}</li>
+{% endblock %}
+
+{% macro status_badge(status) %}
+  {% if status == 'completed' %}<span class="badge-status badge-won">Completed</span>
+  {% elif status == 'cancelled' %}<span class="badge-status badge-inactive">Cancelled</span>
+  {% elif status == 'in_progress' %}<span class="badge-status badge-sent">In Progress</span>
+  {% else %}<span class="badge-status badge-pending">Pending</span>{% endif %}
+{% endmacro %}
+
 {% block content %}
-<div class="page-header"><div><h1 class="page-title">{{ vendor.vendor_name }}</h1><p class="page-subtitle">{{ vendor.vendor_code }}</p></div>
-<div class="page-actions"><a href="{{ url_for('vendor.edit', id=vendor.id) }}" class="btn btn-outline-primary"><i class="bi bi-pencil"></i> Edit</a></div></div>
-<div class="row">
-<div class="col-lg-6"><div class="card mb-4"><div class="card-header"><span>Details</span></div><div class="card-body">
-<div class="mb-3"><label class="text-muted small">Contact</label><div>{{ vendor.contact_person or '-' }}</div></div>
-<div class="mb-3"><label class="text-muted small">Email</label><div>{{ vendor.email or '-' }}</div></div>
-<div class="mb-3"><label class="text-muted small">Phone</label><div>{{ vendor.phone or '-' }}</div></div>
-<div class="mb-3"><label class="text-muted small">Lead Time</label><div>{{ vendor.lead_time or '-' }} days</div></div>
-</div></div></div>
-<div class="col-lg-6"><div class="card mb-4"><div class="card-header"><span>Service Rates</span></div><div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Service</th><th>Rate</th><th>Unit</th></tr></thead><tbody>
-{% for rate in rates %}<tr><td>{{ rate.service_name }}</td><td>{{ rate.rate }}</td><td>{{ rate.unit }}</td></tr>
-{% else %}<tr><td colspan="3" class="text-center">No rates</td></tr>
-{% endfor %}</tbody></table></div></div></div>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ vendor.vendor_name }}</h1>
+        <p class="page-subtitle">
+            {{ vendor.vendor_code }}
+            {% if not vendor.is_active %}<span class="badge-status badge-inactive ms-2">Inactive</span>{% endif %}
+        </p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('vendor.new_work_order', vendor_id=vendor.id) }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Work Order
+        </a>
+        <a href="{{ url_for('vendor.new_quality_issue', id=vendor.id) }}" class="btn btn-outline-warning">
+            <i class="bi bi-exclamation-triangle"></i> Log Quality Issue
+        </a>
+        <a href="{{ url_for('vendor.edit', id=vendor.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+    </div>
 </div>
+
+{# ============ Summary tiles ============ #}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3 col-xl-2">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small">Assigned Work</div>
+            <div class="h4 mb-0">{{ summary.assigned_work }}</div>
+            <div class="small text-muted">{{ summary.current_work }} current / {{ summary.past_work }} past</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small">Pending Qty</div>
+            <div class="h4 mb-0">{{ summary.pending_quantity }}</div>
+            <div class="small text-muted">across current work</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small">Completed Qty</div>
+            <div class="h4 mb-0">{{ summary.completed_quantity }}</div>
+            <div class="small text-muted">received on completed work</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+        <div class="card h-100 {% if summary.overdue_work %}border-danger{% endif %}"><div class="card-body">
+            <div class="text-muted small">Overdue Work</div>
+            <div class="h4 mb-0 {% if summary.overdue_work %}text-danger{% endif %}">{{ summary.overdue_work }}</div>
+            <div class="small text-muted">open past due date</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small">On-Time Delivery</div>
+            {% if summary.on_time_percent is not none %}
+            <div class="h4 mb-0 {% if summary.on_time_percent < 80 %}text-warning{% endif %}">{{ summary.on_time_percent }}%</div>
+            <div class="small text-muted">{{ summary.on_time_orders }}/{{ summary.measured_orders }} completed on time</div>
+            {% else %}
+            <div class="h4 mb-0 text-muted">&mdash;</div>
+            <div class="small text-muted">no completed work with dates</div>
+            {% endif %}
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small">Avg Delay</div>
+            {% if summary.avg_delay_days is not none %}
+            <div class="h4 mb-0">{{ summary.avg_delay_days }}</div>
+            <div class="small text-muted">days (max {{ summary.max_delay_days }})</div>
+            {% else %}
+            <div class="h4 mb-0 text-muted">&mdash;</div>
+            <div class="small text-muted">not measured</div>
+            {% endif %}
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small">Quality Issues</div>
+            <div class="h4 mb-0">{{ summary.quality_issues }}</div>
+            <div class="small text-muted">{{ summary.open_quality_issues }} open</div>
+        </div></div>
+    </div>
+    {% if can_view_financials %}
+    <div class="col-6 col-md-3 col-xl-2">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small">Order Value</div>
+            <div class="h4 mb-0">{{ "{:,.0f}".format(summary.total_order_value) }}</div>
+            <div class="small text-muted">all work orders</div>
+        </div></div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="row">
+    {# ============ Details & rates ============ #}
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header"><span>Details</span></div>
+            <div class="card-body">
+                <div class="mb-3"><label class="text-muted small">Contact</label><div>{{ vendor.contact_person or '-' }}</div></div>
+                <div class="mb-3"><label class="text-muted small">Email</label><div>{{ vendor.email or '-' }}</div></div>
+                <div class="mb-3"><label class="text-muted small">Phone</label><div>{{ vendor.phone or '-' }}{% if vendor.mobile %} / {{ vendor.mobile }}{% endif %}</div></div>
+                <div class="mb-3"><label class="text-muted small">GST</label><div>{{ vendor.gst or '-' }}</div></div>
+                <div class="mb-3"><label class="text-muted small">Currency / Terms</label><div>{{ vendor.default_currency }}{% if vendor.payment_terms %} · {{ vendor.payment_terms }}{% endif %}</div></div>
+                <div class="mb-3"><label class="text-muted small">Lead Time</label><div>{{ vendor.lead_time or '-' }}{% if vendor.lead_time %} days{% endif %}</div></div>
+                {% if vendor.address %}<div class="mb-3"><label class="text-muted small">Address</label><div>{{ vendor.address }}</div></div>{% endif %}
+                {% if vendor.notes %}<div class="mb-3"><label class="text-muted small">Notes</label><div>{{ vendor.notes }}</div></div>{% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Service Rates</span>
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#addRate">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </div>
+            <div class="collapse" id="addRate">
+                <div class="card-body border-bottom">
+                    <form method="POST" action="{{ url_for('vendor.add_rate', id=vendor.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row g-2">
+                            <div class="col-12"><input type="text" class="form-control form-control-sm" name="service_name" placeholder="Service name" required></div>
+                            <div class="col-6"><input type="number" step="0.01" class="form-control form-control-sm" name="rate" placeholder="Rate" required></div>
+                            <div class="col-6">
+                                <select class="form-select form-select-sm" name="unit">
+                                    <option value="₹/piece">₹/piece</option>
+                                    <option value="₹/kg">₹/kg</option>
+                                    <option value="₹/batch">₹/batch</option>
+                                </select>
+                            </div>
+                            <div class="col-6"><input type="number" class="form-control form-control-sm" name="min_quantity" placeholder="Min qty"></div>
+                            <div class="col-6"><input type="number" class="form-control form-control-sm" name="lead_time_days" placeholder="Lead days"></div>
+                            <div class="col-12"><input type="date" class="form-control form-control-sm" name="effective_date" value="{{ now_date }}" required></div>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary mt-2 w-100">Add Rate</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Service</th><th>Rate</th><th>Unit</th><th>Effective</th></tr></thead>
+                    <tbody>
+                    {% for rate in rates %}
+                        <tr>
+                            <td>{{ rate.service_name }}</td>
+                            <td>{{ rate.rate }}</td>
+                            <td>{{ rate.unit }}</td>
+                            <td>{{ rate.effective_date }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">No rates</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {# ============ Work / processes / quality ============ #}
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <ul class="nav nav-pills nav-sm" role="tablist">
+                    {% for key, label in [('current', 'Current'), ('past', 'Past'), ('all', 'All')] %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if work_view == key %}active{% endif %}"
+                           href="{{ url_for('vendor.view', id=vendor.id, work=key) }}">{{ label }}
+                           <span class="badge bg-light text-dark">{{ summary.current_work if key=='current' else (summary.past_work if key=='past' else summary.assigned_work) }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <a href="{{ url_for('vendor.export_work_orders', vendor_id=vendor.id, work=work_view) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-download"></i> Export
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Work Order</th>
+                                <th>Service / Part</th>
+                                <th class="text-end">Ordered</th>
+                                <th class="text-end">Received</th>
+                                <th class="text-end">Rejected</th>
+                                <th class="text-end">Pending</th>
+                                <th>Due</th>
+                                <th>Completed</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for w in work_orders %}
+                            <tr class="{% if w.is_overdue %}table-danger{% endif %}">
+                                <td><strong>{{ w.work_order_number }}</strong></td>
+                                <td>
+                                    <div>{{ w.service_name or w.title or '-' }}</div>
+                                    <small class="text-muted">
+                                        {% if w.process %}{{ w.process.process_name }}{% endif %}
+                                        {% if w.drawing_number %} · {{ w.drawing_number }}{% endif %}
+                                    </small>
+                                </td>
+                                <td class="text-end">{{ w.quantity_ordered }} {{ w.unit }}</td>
+                                <td class="text-end">{{ w.quantity_received }}</td>
+                                <td class="text-end {% if w.quantity_rejected %}text-danger{% endif %}">{{ w.quantity_rejected }}</td>
+                                <td class="text-end">{{ w.pending_quantity }}</td>
+                                <td>
+                                    {{ w.due_date or '-' }}
+                                    {% if w.is_overdue %}<span class="badge bg-danger">{{ w.days_overdue }}d late</span>{% endif %}
+                                </td>
+                                <td>
+                                    {{ w.completed_date or '-' }}
+                                    {% if w.is_completed and w.due_date and w.completed_date %}
+                                        {% if w.completed_date > w.due_date %}
+                                        <span class="badge bg-warning text-dark">late</span>
+                                        {% else %}<span class="badge bg-success-subtle text-success-emphasis">on time</span>{% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>{{ status_badge(w.status) }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        {% if w.is_open %}
+                                        <button class="btn btn-outline-success" data-bs-toggle="modal"
+                                                data-bs-target="#receiveModal"
+                                                data-wo-url="{{ url_for('vendor.receive_work_order', id=w.id) }}"
+                                                data-wo-number="{{ w.work_order_number }}"
+                                                data-wo-pending="{{ w.pending_quantity }}"
+                                                title="Record receipt">
+                                            <i class="bi bi-box-arrow-in-down"></i>
+                                        </button>
+                                        {% endif %}
+                                        <a href="{{ url_for('vendor.edit_work_order', id=w.id) }}" class="btn btn-outline-secondary" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <form method="POST" action="{{ url_for('vendor.delete_work_order', id=w.id) }}"
+                                              onsubmit="return confirm('Delete work order {{ w.work_order_number }}?');" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="10" class="text-center text-muted py-4">
+                                No {{ work_view }} work orders.
+                                <a href="{{ url_for('vendor.new_work_order', vendor_id=vendor.id) }}">Create one</a>.
+                            </td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {# ============ Quantity reconciliation (job-work flow) ============ #}
+        <div class="card mb-4">
+            <div class="card-header">
+                <span>Quantity Reconciliation</span>
+                <small class="text-muted ms-2">all quantities from work-order receipts; no double counting</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0 align-middle">
+                        <thead>
+                            <tr class="text-muted small">
+                                <th>Issued / Ordered</th>
+                                <th>Received</th>
+                                <th>Accepted</th>
+                                <th>Rejected</th>
+                                <th>Reworked</th>
+                                <th>Pending</th>
+                                {% if can_view_financials %}<th class="text-end">Job-Work Value</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="h5 mb-0">{{ summary.ordered_quantity }}</td>
+                                <td class="h5 mb-0">{{ summary.received_quantity }}</td>
+                                <td class="h5 mb-0 text-success">{{ summary.accepted_quantity }}</td>
+                                <td class="h5 mb-0 {% if summary.rejected_quantity %}text-danger{% endif %}">{{ summary.rejected_quantity }}</td>
+                                <td class="h5 mb-0 {% if summary.reworked_quantity %}text-warning{% endif %}">{{ summary.reworked_quantity }}</td>
+                                <td class="h5 mb-0">{{ summary.pending_quantity }}</td>
+                                {% if can_view_financials %}
+                                <td class="text-end">
+                                    <div class="h6 mb-0">{{ "{:,.0f}".format(summary.total_order_value) }}</div>
+                                    <small class="text-muted">open {{ "{:,.0f}".format(summary.open_value) }} · done {{ "{:,.0f}".format(summary.completed_value) }}</small>
+                                </td>
+                                {% endif %}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer small text-muted">
+                Accepted = received &minus; rejected per work order (never negative).
+                Reworked comes from quality issues of type &ldquo;rework&rdquo; and is shown
+                separately because a reworked piece may also appear in the rejected count.
+            </div>
+        </div>
+
+
+        {# ============ Job-work charges (from work orders & rates) ============ #}
+        {% if can_view_financials %}
+        <div class="card mb-4">
+            <div class="card-header"><span>Job-Work Charges</span></div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Job-Work Charges (from rates)</div>
+                        <div class="h5 mb-0">{{ "{:,.0f}".format(summary.total_order_value) }}</div>
+                        <div class="small text-muted">ordered qty &times; rate, all work</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Value Completed</div>
+                        <div class="h5 mb-0">{{ "{:,.0f}".format(summary.completed_value) }}</div>
+                        <div class="small text-muted">completed work only</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Value Rejected</div>
+                        <div class="h5 mb-0 {% if summary.rejected_value %}text-danger{% endif %}">{{ "{:,.0f}".format(summary.rejected_value) }}</div>
+                        <div class="small text-muted">rejected qty &times; rate</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Invoiced (recorded)</div>
+                        <div class="h5 mb-0">{{ "{:,.0f}".format(financials.invoiced_amount) }}</div>
+                        <div class="small text-muted">{{ financials.invoice_count }} invoice(s)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ============ Vendor invoices, payments and ageing (financial) ============ #}
+        {% if can_view_financials %}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Job-Work Invoices &amp; Payments</span>
+                <div>
+                    <a href="{{ url_for('procurement.new_vendor_invoice', vendor_id=vendor.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-receipt"></i> Invoice
+                    </a>
+                    <a href="{{ url_for('procurement.new_vendor_payment', vendor_id=vendor.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-cash-coin"></i> Payment
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Invoiced</div>
+                        <div class="h5 mb-0">{{ "{:,.0f}".format(financials.invoiced_amount) }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Paid (on invoices)</div>
+                        <div class="h5 mb-0">{{ "{:,.0f}".format(financials.paid_on_invoices) }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Outstanding</div>
+                        <div class="h5 mb-0 {% if financials.outstanding_amount %}text-danger{% endif %}">{{ "{:,.0f}".format(financials.outstanding_amount) }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Advances / Credits</div>
+                        <div class="h5 mb-0 {% if financials.advances_credits %}text-warning{% endif %}">{{ "{:,.0f}".format(financials.advances_credits) }}</div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Ageing (by days past due)</th>
+                            <th class="text-end">Not due</th><th class="text-end">0&ndash;30</th>
+                            <th class="text-end">31&ndash;60</th><th class="text-end">61&ndash;90</th>
+                            <th class="text-end">90+</th><th class="text-end">Total</th></tr></thead>
+                        <tbody><tr>
+                            <td class="text-muted small">Outstanding</td>
+                            <td class="text-end">{{ "{:,.0f}".format(financials.ageing.not_due) }}</td>
+                            <td class="text-end">{{ "{:,.0f}".format(financials.ageing['0-30']) }}</td>
+                            <td class="text-end">{{ "{:,.0f}".format(financials.ageing['31-60']) }}</td>
+                            <td class="text-end">{{ "{:,.0f}".format(financials.ageing['61-90']) }}</td>
+                            <td class="text-end">{{ "{:,.0f}".format(financials.ageing['90+']) }}</td>
+                            <td class="text-end fw-bold">{{ "{:,.0f}".format(financials.ageing.total) }}</td>
+                        </tr></tbody>
+                    </table>
+                </div>
+                {% if not financials.has_financial_data %}
+                <p class="text-muted small mb-0 mt-3">
+                    No vendor invoices or payments recorded yet, so paid / outstanding / ageing
+                    show 0 — these figures are only populated once an invoice or payment is entered.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ============ Vendor invoice list ============ #}
+        <div class="card mb-4">
+            <div class="card-header"><span>Vendor Invoices ({{ invoices|length }})</span></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Invoice</th><th>Date</th><th>Due</th>
+                            <th class="text-end">Total</th><th class="text-end">Paid</th>
+                            <th class="text-end">Outstanding</th><th>Status</th><th></th></tr></thead>
+                        <tbody>
+                        {% for inv in invoices %}
+                            <tr>
+                                <td><strong>{{ inv.invoice_number }}</strong></td>
+                                <td>{{ inv.invoice_date }}</td>
+                                <td>{{ inv.due_date or '-' }}</td>
+                                <td class="text-end">{{ "{:,.0f}".format(inv.total_amount or 0) }}</td>
+                                <td class="text-end">{{ "{:,.0f}".format(inv.paid_amount) }}</td>
+                                <td class="text-end {% if inv.outstanding_amount %}text-danger{% endif %}">{{ "{:,.0f}".format(inv.outstanding_amount) }}</td>
+                                <td>{% if inv.status == 'cancelled' %}Cancelled{% elif inv.is_paid %}Paid{% else %}Posted{% endif %}</td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('procurement.edit_vendor_invoice', id=inv.id) }}"
+                                       class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
+                                    <form method="POST" class="d-inline" action="{{ url_for('procurement.delete_vendor_invoice', id=inv.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-sm btn-outline-danger" data-confirm="Delete this invoice?"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="8" class="text-center text-muted py-3">No invoices recorded.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {# ============ Vendor payment list + allocation ============ #}
+        <div class="card mb-4">
+            <div class="card-header"><span>Vendor Payments ({{ payments|length }})</span></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Payment</th><th>Date</th><th>Method</th>
+                            <th class="text-end">Amount</th><th class="text-end">Allocated</th>
+                            <th class="text-end">Unallocated</th><th>Allocate</th><th></th></tr></thead>
+                        <tbody>
+                        {% for p in payments %}
+                            <tr>
+                                <td><strong>{{ p.payment_number }}</strong>{% if p.is_advance %} <span class="badge bg-warning-subtle text-warning-emphasis">Advance</span>{% endif %}</td>
+                                <td>{{ p.payment_date }}</td>
+                                <td>{{ p.method or '-' }}</td>
+                                <td class="text-end">{{ "{:,.0f}".format(p.amount or 0) }}</td>
+                                <td class="text-end">{{ "{:,.0f}".format(p.allocated_amount) }}</td>
+                                <td class="text-end {% if p.unallocated_amount %}text-warning{% endif %}">{{ "{:,.0f}".format(p.unallocated_amount) }}</td>
+                                <td>
+                                    {% if p.unallocated_amount > 0 and invoices %}
+                                    <form method="POST" action="{{ url_for('procurement.allocate_vendor_payment', id=p.id) }}"
+                                          class="d-flex gap-1">
+                                        {{ allocation_form.hidden_tag() }}
+                                        <select name="invoice_id" class="form-select form-select-sm" style="min-width:11rem;">
+                                            <option value="">Invoice…</option>
+                                            {% for inv in invoices if inv.status != 'cancelled' and inv.outstanding_amount > 0 %}
+                                            <option value="{{ inv.id }}">{{ inv.invoice_number }} ({{ "{:,.0f}".format(inv.outstanding_amount) }})</option>
+                                            {% endfor %}
+                                        </select>
+                                        <input type="number" step="0.01" name="amount" class="form-control form-control-sm"
+                                               style="width:6rem;" max="{{ p.unallocated_amount }}" placeholder="Amt" required>
+                                        <button class="btn btn-sm btn-outline-success" title="Allocate"><i class="bi bi-link-45deg"></i></button>
+                                    </form>
+                                    {% else %}&mdash;{% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('procurement.edit_vendor_payment', id=p.id) }}"
+                                       class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
+                                    <form method="POST" class="d-inline" action="{{ url_for('procurement.delete_vendor_payment', id=p.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-sm btn-outline-danger" data-confirm="Delete this payment?"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="8" class="text-center text-muted py-3">No payments recorded.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card mb-4">
+            <div class="card-body text-muted small mb-0">
+                Invoices, payments and payables are visible to accounts, admin and reporting
+                roles only.
+            </div>
+        </div>
+        {% endif %}
+
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header"><span>Manufacturing Processes ({{ processes|length }})</span></div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0">
+                            <thead><tr><th>Code</th><th>Process</th><th>Cost</th></tr></thead>
+                            <tbody>
+                            {% for p in processes %}
+                                <tr>
+                                    <td><strong>{{ p.process_code }}</strong></td>
+                                    <td>{{ p.process_name }}</td>
+                                    <td>{{ p.cost_type }}{% if p.cost_value %} · {{ p.cost_value }}{% endif %}</td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="3" class="text-center text-muted py-3">No processes linked to this vendor</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Quality Issues ({{ quality_issues|length }})</span>
+                        <a href="{{ url_for('vendor.new_quality_issue', id=vendor.id) }}" class="btn btn-sm btn-outline-warning"><i class="bi bi-plus-lg"></i></a>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0">
+                            <thead><tr><th>Date</th><th>Type</th><th>Qty</th><th>Status</th><th></th></tr></thead>
+                            <tbody>
+                            {% for q in quality_issues %}
+                                <tr>
+                                    <td>{{ q.issue_date }}</td>
+                                    <td>
+                                        {{ q.issue_type|replace('_', ' ')|title }}
+                                        <span class="badge bg-{{ 'danger' if q.severity == 'critical' else ('warning' if q.severity == 'major' else 'secondary') }}">{{ q.severity }}</span>
+                                    </td>
+                                    <td>{{ q.quantity_affected }}</td>
+                                    <td>
+                                        {% if q.is_open %}<span class="badge bg-warning text-dark">{{ q.status|replace('_',' ')|title }}</span>
+                                        {% else %}<span class="badge bg-success">{{ q.status|title }}</span>{% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('vendor.edit_quality_issue', issue_id=q.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                                            <form method="POST" action="{{ url_for('vendor.delete_quality_issue', issue_id=q.id) }}"
+                                                  onsubmit="return confirm('Delete this quality issue?');" class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="5" class="text-center text-muted py-3">No quality issues recorded</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header"><span>Quotation Operations Outsourced ({{ quotation_operations|length }})</span></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Quotation</th><th>Operation</th><th class="text-end">Qty</th><th class="text-end">Cost</th></tr></thead>
+                        <tbody>
+                        {% for op in quotation_operations %}
+                            <tr>
+                                <td>
+                                    {% if op.quotation %}
+                                    <a href="{{ url_for('quotation.view', id=op.quotation_id) }}">{{ op.quotation.quotation_number }}</a>
+                                    {% else %}-{% endif %}
+                                </td>
+                                <td>{{ op.operation_name or (op.process.process_name if op.process else '-') }}</td>
+                                <td class="text-end">{{ op.quantity_for_calculation }}</td>
+                                <td class="text-end">{{ "{:,.2f}".format(op.calculated_cost or 0) }}</td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="4" class="text-center text-muted py-3">No outsourced quotation operations</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ============ Receive modal ============ #}
+<div class="modal fade" id="receiveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" id="receiveForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Record Receipt</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Work order <strong id="receiveWoNumber"></strong>
+                       (pending <span id="receiveWoPending"></span>)</p>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity Received</label>
+                        <input type="number" min="0" class="form-control" name="quantity" value="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity Rejected</label>
+                        <input type="number" min="0" class="form-control" name="rejected" value="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Receipt</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('receiveModal').addEventListener('show.bs.modal', function (event) {
+    const button = event.relatedTarget;
+    document.getElementById('receiveForm').action = button.getAttribute('data-wo-url');
+    document.getElementById('receiveWoNumber').textContent = button.getAttribute('data-wo-number');
+    document.getElementById('receiveWoPending').textContent = button.getAttribute('data-wo-pending');
+});
+</script>
 {% endblock %}

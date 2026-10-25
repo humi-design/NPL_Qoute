@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit Payment' if payment else 'New Payment' }} - NPL ERP{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Edit Payment' if payment else 'Record Payment' }}</h1>
+        <p class="page-subtitle">
+            {% if is_vendor %}Vendor: {{ vendor.vendor_name }}{% else %}Supplier: {{ supplier.company_name }}{% endif %}
+        </p>
+    </div>
+</div>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="card mb-4">
+        <div class="card-header"><span>Payment Details</span></div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">{{ form.payment_date.label.text }} *</label>
+                    {{ form.payment_date(class="form-control", type="date") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{{ form.amount.label.text }} *</label>
+                    {{ form.amount(class="form-control", step="0.01") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{{ form.currency.label.text }}</label>
+                    {{ form.currency(class="form-select") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{{ form.method.label.text }}</label>
+                    {{ form.method(class="form-select") }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.reference.label.text }}</label>
+                    {{ form.reference(class="form-control") }}
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check">
+                        {{ form.is_advance(class="form-check-input") }}
+                        <label class="form-check-label">{{ form.is_advance.label.text }}</label>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">{{ form.notes.label.text }}</label>
+                {{ form.notes(class="form-control", rows="2") }}
+            </div>
+            <div class="alert alert-secondary py-2 small mb-0">
+                A payment is recorded once. Allocate it to invoices from the
+                {% if is_vendor %}vendor{% else %}supplier{% endif %} profile. Any unallocated amount
+                is shown as an advance / credit.
+            </div>
+        </div>
+    </div>
+    <div class="d-flex justify-content-between">
+        <a href="{{ url_for('vendor.view', id=vendor.id) if is_vendor else url_for('supplier.view', id=supplier.id) }}"
+           class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Packaging - {{ order.order_number }} - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('orders.index') }}">Orders</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('orders.view_order', id=order.id) }}">{{ order.order_number }}</a></li>
+<li class="breadcrumb-item active">Packaging</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Packaging — {{ order.order_number }}</h1>
+        <p class="page-subtitle">
+            Produced {{ order.quantity_produced }} of {{ order.quantity_ordered }}
+            {{ order.unit }}. Warehouse receipt of the full quantity completes the order.
+        </p>
+    </div>
+</div>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="card mb-4">
+        <div class="card-header"><span>Packaging</span></div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">Packaging Date *</label>
+                    {{ form.packaging_date(class="form-control", type="date") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Packaging Type</label>
+                    {{ form.packaging_type(class="form-select") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Qty Packed</label>
+                    {{ form.quantity_packed(class="form-control") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Qty Accepted *</label>
+                    {{ form.quantity_accepted(class="form-control") }}
+                    {% if form.quantity_accepted.errors %}<div class="text-danger small">{{ form.quantity_accepted.errors[0] }}</div>{% endif %}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Qty Rejected</label>
+                    {{ form.quantity_rejected(class="form-control") }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">Label Ref</label>
+                    {{ form.label_ref(class="form-control") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Warehouse Receipt No.</label>
+                    {{ form.warehouse_receipt_number(class="form-control") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Warehouse Receipt Date</label>
+                    {{ form.warehouse_receipt_date(class="form-control", type="date") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Location</label>
+                    {{ form.location(class="form-control") }}
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    {{ form.status(class="form-select") }}
+                </div>
+                <div class="col-md-10">
+                    <label class="form-label">Notes</label>
+                    {{ form.notes(class="form-control", rows="2") }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex justify-content-between">
+        <a href="{{ url_for('orders.view_order', id=order.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+</form>
+{% endblock %}

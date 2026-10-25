@@ -364,17 +364,14 @@ ALTER TABLE process_templates ADD COLUMN IF NOT EXISTS template_code VARCHAR(30)
 CREATE TABLE IF NOT EXISTS process_template_steps (
     id INT AUTO_INCREMENT PRIMARY KEY,
     template_id INT NOT NULL,
-    step_number INT,
     process_id INT,
-    process_name VARCHAR(100),
-    machine_id INT,
-    vendor_id INT,
-    setup_time DECIMAL(10,2),
-    cycle_time DECIMAL(10,2),
-    cost_type VARCHAR(20),
-    cost_value DECIMAL(12,4),
+    sequence INT NOT NULL DEFAULT 1,
     notes TEXT
 );
+
+-- Repair legacy installs created from an older definition that had
+-- step_number but no sequence. The model requires sequence (NOT NULL).
+ALTER TABLE process_template_steps ADD COLUMN IF NOT EXISTS sequence INT NOT NULL DEFAULT 1;
 
 -- =============================================
 -- ALLOWANCES TABLE
@@ -390,6 +387,8 @@ CREATE TABLE IF NOT EXISTS allowances (
 
 ALTER TABLE allowances ADD COLUMN IF NOT EXISTS allowance_type VARCHAR(20) DEFAULT 'machining' AFTER allowance_name;
 ALTER TABLE allowances ADD COLUMN IF NOT EXISTS default_value DECIMAL(10,2) AFTER allowance_type;
+ALTER TABLE allowances ADD COLUMN IF NOT EXISTS allowance_code VARCHAR(30) AFTER id;
+ALTER TABLE allowances ADD COLUMN IF NOT EXISTS value FLOAT DEFAULT 0 AFTER allowance_type;
 
 -- Insert default allowances
 INSERT IGNORE INTO allowances (allowance_name, allowance_type, default_value, is_active) VALUES
@@ -503,16 +502,29 @@ ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS notes TEXT AFTER sequence;
 CREATE TABLE IF NOT EXISTS quotation_operations (
     id INT AUTO_INCREMENT PRIMARY KEY,
     quotation_id INT NOT NULL,
+    quotation_item_id INT,
+    process_id INT,
     operation_name VARCHAR(100),
-    sequence INT,
+    operation_type VARCHAR(20),
+    sequence INT DEFAULT 0,
     machine_id INT,
     vendor_id INT,
     setup_time DECIMAL(10,2),
     cycle_time DECIMAL(10,2),
     cost_type VARCHAR(20),
     cost_value DECIMAL(12,4),
-    cost_amount DECIMAL(12,4) DEFAULT 0
+    calculated_cost FLOAT DEFAULT 0,
+    quantity_for_calculation INT DEFAULT 1,
+    cost_amount DECIMAL(12,4) DEFAULT 0,
+    notes TEXT
 );
+
+ALTER TABLE quotation_operations ADD COLUMN IF NOT EXISTS quotation_item_id INT AFTER quotation_id;
+ALTER TABLE quotation_operations ADD COLUMN IF NOT EXISTS process_id INT AFTER quotation_item_id;
+ALTER TABLE quotation_operations ADD COLUMN IF NOT EXISTS operation_type VARCHAR(20) AFTER operation_name;
+ALTER TABLE quotation_operations ADD COLUMN IF NOT EXISTS calculated_cost FLOAT DEFAULT 0 AFTER cost_value;
+ALTER TABLE quotation_operations ADD COLUMN IF NOT EXISTS quantity_for_calculation INT DEFAULT 1 AFTER calculated_cost;
+ALTER TABLE quotation_operations ADD COLUMN IF NOT EXISTS notes TEXT;
 
 -- =============================================
 -- ATTACHMENTS TABLE
@@ -570,6 +582,7 @@ CREATE TABLE IF NOT EXISTS currencies (
 );
 
 ALTER TABLE currencies ADD COLUMN IF NOT EXISTS symbol VARCHAR(10) AFTER exchange_rate;
+ALTER TABLE currencies ADD COLUMN IF NOT EXISTS is_base BOOLEAN DEFAULT FALSE AFTER symbol;
 
 -- Insert sample currencies
 INSERT IGNORE INTO currencies (currency_code, currency_name, exchange_rate, symbol, is_active) VALUES
@@ -670,9 +683,851 @@ ALTER TABLE notifications ADD COLUMN IF NOT EXISTS reference_id INT AFTER refere
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE AFTER reference_id;
 
 -- =============================================
+-- VENDOR WORK ORDERS TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS vendor_work_orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    work_order_number VARCHAR(30) NOT NULL UNIQUE,
+    vendor_id INT NOT NULL,
+    process_id INT,
+    product_id INT,
+    quotation_id INT,
+    title VARCHAR(200),
+    part_description VARCHAR(300),
+    drawing_number VARCHAR(100),
+    service_name VARCHAR(100),
+    notes TEXT,
+    quantity_ordered INT DEFAULT 0,
+    quantity_received INT DEFAULT 0,
+    quantity_rejected INT DEFAULT 0,
+    unit VARCHAR(20) DEFAULT 'pcs',
+    rate DECIMAL(12,4) DEFAULT 0,
+    currency VARCHAR(10) DEFAULT 'INR',
+    order_date DATE,
+    due_date DATE,
+    completed_date DATE,
+    status VARCHAR(20) DEFAULT 'pending',
+    priority VARCHAR(20) DEFAULT 'normal',
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS work_order_number VARCHAR(30) NOT NULL UNIQUE AFTER id;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS vendor_id INT NOT NULL AFTER work_order_number;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS process_id INT AFTER vendor_id;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS product_id INT AFTER process_id;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS quotation_id INT AFTER product_id;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS title VARCHAR(200) AFTER quotation_id;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS part_description VARCHAR(300) AFTER title;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS drawing_number VARCHAR(100) AFTER part_description;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS service_name VARCHAR(100) AFTER drawing_number;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS notes TEXT AFTER service_name;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS quantity_ordered INT DEFAULT 0 AFTER notes;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS quantity_received INT DEFAULT 0 AFTER quantity_ordered;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS quantity_rejected INT DEFAULT 0 AFTER quantity_received;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS unit VARCHAR(20) DEFAULT 'pcs' AFTER quantity_rejected;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS rate DECIMAL(12,4) DEFAULT 0 AFTER unit;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS currency VARCHAR(10) DEFAULT 'INR' AFTER rate;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS order_date DATE AFTER currency;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS due_date DATE AFTER order_date;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS completed_date DATE AFTER due_date;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending' AFTER completed_date;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal' AFTER status;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS created_by INT AFTER priority;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER created_by;
+ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
+
+-- Indexes: see the note at the end of this file (MySQL has no
+-- CREATE INDEX IF NOT EXISTS). The equivalent indexes are defined in schema.sql.
+
+-- =============================================
+-- VENDOR QUALITY ISSUES TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS vendor_quality_issues (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_id INT NOT NULL,
+    work_order_id INT,
+    issue_date DATE NOT NULL,
+    issue_type VARCHAR(30) DEFAULT 'rejection',
+    severity VARCHAR(20) DEFAULT 'minor',
+    description TEXT,
+    quantity_affected INT DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'open',
+    resolution TEXT,
+    resolved_date DATE,
+    reported_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS vendor_id INT NOT NULL AFTER id;
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS work_order_id INT AFTER vendor_id;
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS issue_date DATE NOT NULL AFTER work_order_id;
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS issue_type VARCHAR(30) DEFAULT 'rejection' AFTER issue_date;
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS severity VARCHAR(20) DEFAULT 'minor' AFTER issue_type;
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS description TEXT AFTER severity;
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS quantity_affected INT DEFAULT 0 AFTER description;
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'open' AFTER quantity_affected;
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS resolution TEXT AFTER status;
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS resolved_date DATE AFTER resolution;
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS reported_by INT AFTER resolved_date;
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER reported_by;
+ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
+
+-- =============================================
+-- SUPPLIER / MASTER DATA TABLES (additive)
+-- =============================================
+CREATE TABLE IF NOT EXISTS supplier_types (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    type_code VARCHAR(30) NOT NULL UNIQUE,
+    type_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    sort_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS type_code VARCHAR(30) NOT NULL AFTER id;
+ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS type_name VARCHAR(100) NOT NULL AFTER type_code;
+ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS description TEXT AFTER type_name;
+ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0 AFTER description;
+ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE AFTER sort_order;
+ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER is_active;
+ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
+
+CREATE TABLE IF NOT EXISTS suppliers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    supplier_code VARCHAR(30) NOT NULL UNIQUE,
+    company_name VARCHAR(200) NOT NULL,
+    supplier_type_id INT,
+    contact_person VARCHAR(120),
+    email VARCHAR(120),
+    phone VARCHAR(30),
+    mobile VARCHAR(30),
+    website VARCHAR(200),
+    address_line1 VARCHAR(200),
+    address_line2 VARCHAR(200),
+    city VARCHAR(100),
+    state VARCHAR(100),
+    postal_code VARCHAR(20),
+    country VARCHAR(100) DEFAULT 'India',
+    gst_vat VARCHAR(30),
+    pan VARCHAR(30),
+    cin VARCHAR(30),
+    tax_id VARCHAR(50),
+    default_currency VARCHAR(10) DEFAULT 'INR',
+    payment_terms VARCHAR(100),
+    lead_time INT,
+    document_references TEXT,
+    notes TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS supplier_code VARCHAR(30) NOT NULL AFTER id;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS company_name VARCHAR(200) NOT NULL AFTER supplier_code;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS supplier_type_id INT AFTER company_name;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS contact_person VARCHAR(120) AFTER supplier_type_id;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS email VARCHAR(120) AFTER contact_person;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS phone VARCHAR(30) AFTER email;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS mobile VARCHAR(30) AFTER phone;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS website VARCHAR(200) AFTER mobile;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS address_line1 VARCHAR(200) AFTER website;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS address_line2 VARCHAR(200) AFTER address_line1;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS city VARCHAR(100) AFTER address_line2;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS state VARCHAR(100) AFTER city;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20) AFTER state;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India' AFTER postal_code;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS gst_vat VARCHAR(30) AFTER country;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS pan VARCHAR(30) AFTER gst_vat;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS cin VARCHAR(30) AFTER pan;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS tax_id VARCHAR(50) AFTER cin;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS default_currency VARCHAR(10) DEFAULT 'INR' AFTER tax_id;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100) AFTER default_currency;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS lead_time INT AFTER payment_terms;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS document_references TEXT AFTER lead_time;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS notes TEXT AFTER document_references;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE AFTER notes;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER is_active;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
+
+CREATE TABLE IF NOT EXISTS supplier_materials (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    supplier_id INT NOT NULL,
+    material_id INT,
+    grade VARCHAR(50),
+    rate FLOAT,
+    rate_unit VARCHAR(20) DEFAULT '₹/kg',
+    lead_time INT,
+    notes TEXT,
+    is_preferred BOOLEAN DEFAULT FALSE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS supplier_id INT NOT NULL AFTER id;
+ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS material_id INT AFTER supplier_id;
+ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS grade VARCHAR(50) AFTER material_id;
+ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS rate FLOAT AFTER grade;
+ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS rate_unit VARCHAR(20) DEFAULT '₹/kg' AFTER rate;
+ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS lead_time INT AFTER rate_unit;
+ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS notes TEXT AFTER lead_time;
+ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS is_preferred BOOLEAN DEFAULT FALSE AFTER notes;
+ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER is_preferred;
+
+-- Link materials to the supplier master (optional, additive; existing text kept)
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS supplier_id INT AFTER default_supplier;
+
+
+-- =============================================
+-- PROCUREMENT: PURCHASE ORDERS, RECEIPTS & BATCHES (additive)
+-- =============================================
+-- These are new tables created with IF NOT EXISTS, so running this migration
+-- against an existing database adds them without touching any existing data.
+CREATE TABLE IF NOT EXISTS supplier_purchase_orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    po_number VARCHAR(30) NOT NULL UNIQUE,
+    supplier_id INT NOT NULL,
+    order_date DATE,
+    expected_date DATE,
+    status VARCHAR(20) DEFAULT 'draft',
+    currency VARCHAR(10) DEFAULT 'INR',
+    payment_terms VARCHAR(100),
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    INDEX idx_spo_supplier (supplier_id),
+    INDEX idx_spo_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_po_lines (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    po_id INT NOT NULL,
+    material_id INT,
+    description VARCHAR(300),
+    grade VARCHAR(50),
+    quantity_ordered FLOAT DEFAULT 0,
+    unit VARCHAR(20) DEFAULT 'kg',
+    rate FLOAT DEFAULT 0,
+    rate_unit VARCHAR(20) DEFAULT '₹/kg',
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (po_id) REFERENCES supplier_purchase_orders(id),
+    FOREIGN KEY (material_id) REFERENCES materials(id),
+    INDEX idx_spol_po (po_id)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_order_receipts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    receipt_number VARCHAR(30) NOT NULL UNIQUE,
+    po_id INT NOT NULL,
+    supplier_id INT NOT NULL,
+    receipt_date DATE NOT NULL,
+    supplier_document VARCHAR(100),
+    notes TEXT,
+    received_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (po_id) REFERENCES supplier_purchase_orders(id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    INDEX idx_sor_po (po_id),
+    INDEX idx_sor_supplier (supplier_id)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_receipt_lines (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    receipt_id INT NOT NULL,
+    po_line_id INT,
+    material_id INT,
+    quantity_received FLOAT DEFAULT 0,
+    quantity_rejected FLOAT DEFAULT 0,
+    batch_number VARCHAR(60),
+    heat_number VARCHAR(60),
+    lot_number VARCHAR(60),
+    certificate_ref VARCHAR(120),
+    inspection_status VARCHAR(20) DEFAULT 'pending',
+    inspection_notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (receipt_id) REFERENCES supplier_order_receipts(id),
+    FOREIGN KEY (po_line_id) REFERENCES supplier_po_lines(id),
+    FOREIGN KEY (material_id) REFERENCES materials(id),
+    INDEX idx_srl_receipt (receipt_id)
+);
+
+-- =============================================
+-- PAYABLES: SUPPLIER INVOICES, PAYMENTS & ALLOCATIONS (additive)
+-- =============================================
+CREATE TABLE IF NOT EXISTS supplier_invoices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    invoice_number VARCHAR(60) NOT NULL,
+    supplier_id INT NOT NULL,
+    po_id INT,
+    invoice_date DATE NOT NULL,
+    due_date DATE,
+    subtotal FLOAT DEFAULT 0,
+    tax_amount FLOAT DEFAULT 0,
+    total_amount FLOAT DEFAULT 0,
+    currency VARCHAR(10) DEFAULT 'INR',
+    status VARCHAR(20) DEFAULT 'posted',
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_supplier_invoice_number (supplier_id, invoice_number),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    FOREIGN KEY (po_id) REFERENCES supplier_purchase_orders(id),
+    INDEX idx_sinv_supplier (supplier_id),
+    INDEX idx_sinv_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    payment_number VARCHAR(30) NOT NULL UNIQUE,
+    supplier_id INT NOT NULL,
+    payment_date DATE NOT NULL,
+    amount FLOAT DEFAULT 0,
+    currency VARCHAR(10) DEFAULT 'INR',
+    method VARCHAR(20),
+    reference VARCHAR(100),
+    is_advance BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    INDEX idx_spay_supplier (supplier_id)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_payment_allocations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    payment_id INT NOT NULL,
+    invoice_id INT NOT NULL,
+    amount FLOAT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_supplier_alloc_payment_invoice (payment_id, invoice_id),
+    FOREIGN KEY (payment_id) REFERENCES supplier_payments(id),
+    FOREIGN KEY (invoice_id) REFERENCES supplier_invoices(id),
+    INDEX idx_spa_payment (payment_id),
+    INDEX idx_spa_invoice (invoice_id)
+);
+
+-- =============================================
+-- PAYABLES: VENDOR (JOB-WORK) INVOICES, PAYMENTS & ALLOCATIONS (additive)
+-- =============================================
+CREATE TABLE IF NOT EXISTS vendor_invoices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    invoice_number VARCHAR(60) NOT NULL,
+    vendor_id INT NOT NULL,
+    work_order_id INT,
+    invoice_date DATE NOT NULL,
+    due_date DATE,
+    subtotal FLOAT DEFAULT 0,
+    tax_amount FLOAT DEFAULT 0,
+    total_amount FLOAT DEFAULT 0,
+    currency VARCHAR(10) DEFAULT 'INR',
+    status VARCHAR(20) DEFAULT 'posted',
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_vendor_invoice_number (vendor_id, invoice_number),
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id),
+    FOREIGN KEY (work_order_id) REFERENCES vendor_work_orders(id),
+    INDEX idx_vinv_vendor (vendor_id),
+    INDEX idx_vinv_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS vendor_payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    payment_number VARCHAR(30) NOT NULL UNIQUE,
+    vendor_id INT NOT NULL,
+    payment_date DATE NOT NULL,
+    amount FLOAT DEFAULT 0,
+    currency VARCHAR(10) DEFAULT 'INR',
+    method VARCHAR(20),
+    reference VARCHAR(100),
+    is_advance BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id),
+    INDEX idx_vpay_vendor (vendor_id)
+);
+
+CREATE TABLE IF NOT EXISTS vendor_payment_allocations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    payment_id INT NOT NULL,
+    invoice_id INT NOT NULL,
+    amount FLOAT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_vendor_alloc_payment_invoice (payment_id, invoice_id),
+    FOREIGN KEY (payment_id) REFERENCES vendor_payments(id),
+    FOREIGN KEY (invoice_id) REFERENCES vendor_invoices(id),
+    INDEX idx_vpa_payment (payment_id),
+    INDEX idx_vpa_invoice (invoice_id)
+);
+
+
+
+-- =============================================
+-- ORDERS & MANUFACTURING TRACKING
+-- =============================================
+-- A confirmed customer order anchors the production lifecycle:
+--   Order -> OrderOperation (order-specific route, sequence ordered)
+--            -> OperationTransaction (issue/return/accept/reject/rework/scrap)
+--   Order -> MaterialLot -> MaterialMovement (receipt/allocation/issue/return/scrap/shortage)
+--   Order -> Inspection (incoming / in_process / final)
+--   Order -> PackagingRecord (packed + warehouse receipt -> completion)
+-- Quantities are derived from the ledger rows, and UNIQUE keys stop duplicate
+-- movements being posted twice.
+
+CREATE TABLE IF NOT EXISTS orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_number VARCHAR(30) NOT NULL UNIQUE,
+    customer_id INT NOT NULL,
+    quotation_id INT,
+    quotation_item_id INT,
+    product_id INT,
+    part_description VARCHAR(300),
+    drawing_number VARCHAR(100),
+    revision VARCHAR(10),
+    specifications TEXT,
+    material_grade VARCHAR(100),
+    standard VARCHAR(50),
+    quantity_ordered INT DEFAULT 0,
+    unit VARCHAR(20) DEFAULT 'pcs',
+    rate FLOAT DEFAULT 0,
+    currency VARCHAR(10) DEFAULT 'INR',
+    order_date DATE NOT NULL,
+    due_date DATE,
+    planned_start DATE,
+    actual_start DATE,
+    actual_completion DATE,
+    status VARCHAR(20) DEFAULT 'confirmed',
+    priority VARCHAR(20) DEFAULT 'normal',
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id),
+    FOREIGN KEY (quotation_id) REFERENCES quotations(id),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    INDEX idx_order_number (order_number),
+    INDEX idx_order_customer (customer_id),
+    INDEX idx_order_status (status),
+    INDEX idx_order_drawing (drawing_number)
+);
+
+CREATE TABLE IF NOT EXISTS order_operations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    sequence INT NOT NULL DEFAULT 1,
+    process_id INT,
+    operation_name VARCHAR(100) NOT NULL,
+    is_vendor BOOLEAN DEFAULT FALSE,
+    vendor_id INT,
+    machine_id INT,
+    quantity_planned INT DEFAULT 0,
+    planned_issue_date DATE,
+    due_date DATE,
+    rate FLOAT DEFAULT 0,
+    actual_start DATE,
+    actual_end DATE,
+    status VARCHAR(20) DEFAULT 'pending',
+    is_final BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (process_id) REFERENCES processes(id),
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id),
+    FOREIGN KEY (machine_id) REFERENCES machines(id),
+    INDEX idx_op_order (order_id),
+    INDEX idx_op_vendor (vendor_id),
+    INDEX idx_op_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS operation_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_operation_id INT NOT NULL,
+    transaction_type VARCHAR(20) NOT NULL,
+    transaction_date DATE NOT NULL,
+    quantity INT DEFAULT 0,
+    reference VARCHAR(100),
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_op_txn_type_reference (order_operation_id, transaction_type, reference),
+    FOREIGN KEY (order_operation_id) REFERENCES order_operations(id),
+    INDEX idx_op_txn_op (order_operation_id),
+    INDEX idx_op_txn_type (transaction_type)
+);
+
+CREATE TABLE IF NOT EXISTS material_lots (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    lot_number VARCHAR(60) NOT NULL,
+    material_id INT,
+    order_id INT,
+    supplier_id INT,
+    po_id INT,
+    receipt_id INT,
+    receipt_line_id INT,
+    grade VARCHAR(100),
+    specification VARCHAR(200),
+    heat_number VARCHAR(60),
+    batch_number VARCHAR(60),
+    certificate_ref VARCHAR(120),
+    quantity_received FLOAT DEFAULT 0,
+    unit VARCHAR(20) DEFAULT 'kg',
+    receipt_date DATE,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_lot_receipt_line (receipt_line_id),
+    FOREIGN KEY (material_id) REFERENCES materials(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    FOREIGN KEY (po_id) REFERENCES supplier_purchase_orders(id),
+    FOREIGN KEY (receipt_id) REFERENCES supplier_order_receipts(id),
+    FOREIGN KEY (receipt_line_id) REFERENCES supplier_receipt_lines(id),
+    INDEX idx_lot_number (lot_number),
+    INDEX idx_lot_material (material_id),
+    INDEX idx_lot_order (order_id)
+);
+
+CREATE TABLE IF NOT EXISTS material_movements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    lot_id INT NOT NULL,
+    movement_type VARCHAR(20) NOT NULL,
+    movement_date DATE NOT NULL,
+    quantity FLOAT DEFAULT 0,
+    order_id INT,
+    order_operation_id INT,
+    reference VARCHAR(100),
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_movement_type_reference (lot_id, movement_type, reference),
+    FOREIGN KEY (lot_id) REFERENCES material_lots(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (order_operation_id) REFERENCES order_operations(id),
+    INDEX idx_mv_lot (lot_id),
+    INDEX idx_mv_type (movement_type),
+    INDEX idx_mv_order (order_id)
+);
+
+CREATE TABLE IF NOT EXISTS inspections (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    inspection_number VARCHAR(30) NOT NULL UNIQUE,
+    order_id INT NOT NULL,
+    order_operation_id INT,
+    lot_id INT,
+    inspection_type VARCHAR(20) DEFAULT 'final',
+    inspection_date DATE NOT NULL,
+    acceptance_criteria TEXT,
+    tolerance VARCHAR(100),
+    measurements TEXT,
+    sample_size INT DEFAULT 0,
+    quantity_inspected INT DEFAULT 0,
+    quantity_accepted INT DEFAULT 0,
+    quantity_rejected INT DEFAULT 0,
+    quantity_rework INT DEFAULT 0,
+    result VARCHAR(20) DEFAULT 'pending',
+    notes TEXT,
+    inspected_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (order_operation_id) REFERENCES order_operations(id),
+    FOREIGN KEY (lot_id) REFERENCES material_lots(id),
+    INDEX idx_insp_number (inspection_number),
+    INDEX idx_insp_order (order_id),
+    INDEX idx_insp_type (inspection_type),
+    INDEX idx_insp_result (result)
+);
+
+CREATE TABLE IF NOT EXISTS packaging_records (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    packaging_date DATE NOT NULL,
+    packaging_type VARCHAR(50),
+    quantity_packed INT DEFAULT 0,
+    quantity_accepted INT DEFAULT 0,
+    quantity_rejected INT DEFAULT 0,
+    label_ref VARCHAR(100),
+    warehouse_receipt_number VARCHAR(50),
+    warehouse_receipt_date DATE,
+    location VARCHAR(100),
+    status VARCHAR(20) DEFAULT 'packed',
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    INDEX idx_pack_order (order_id),
+    INDEX idx_pack_status (status)
+);
+
+-- =============================================
+-- INVENTORY: stock locations, transfers, adjustments
+-- =============================================
+CREATE TABLE IF NOT EXISTS stock_locations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(30) NOT NULL UNIQUE,
+    name VARCHAR(120) NOT NULL,
+    kind VARCHAR(30) DEFAULT 'raw_material',
+    vendor_id INT,
+    address VARCHAR(300),
+    is_active BOOLEAN DEFAULT TRUE,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id),
+    INDEX idx_loc_code (code),
+    INDEX idx_loc_kind (kind)
+);
+
+CREATE TABLE IF NOT EXISTS stock_transfers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    transfer_number VARCHAR(30) NOT NULL UNIQUE,
+    from_location_id INT,
+    to_location_id INT,
+    transfer_date DATE NOT NULL,
+    quantity FLOAT DEFAULT 0,
+    unit VARCHAR(20) DEFAULT 'pcs',
+    material_lot_id INT,
+    order_id INT,
+    order_operation_id INT,
+    status VARCHAR(20) DEFAULT 'received',
+    reference VARCHAR(100),
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (from_location_id) REFERENCES stock_locations(id),
+    FOREIGN KEY (to_location_id) REFERENCES stock_locations(id),
+    FOREIGN KEY (material_lot_id) REFERENCES material_lots(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (order_operation_id) REFERENCES order_operations(id),
+    INDEX idx_trf_number (transfer_number),
+    INDEX idx_trf_date (transfer_date),
+    INDEX idx_trf_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS stock_adjustments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    adjustment_number VARCHAR(30) NOT NULL UNIQUE,
+    adjustment_date DATE NOT NULL,
+    material_lot_id INT,
+    location_id INT,
+    order_id INT,
+    adjustment_type VARCHAR(20) DEFAULT 'correction',
+    quantity FLOAT DEFAULT 0,
+    unit VARCHAR(20) DEFAULT 'kg',
+    reverses_movement_id INT,
+    reverses_transfer_id INT,
+    reason VARCHAR(300),
+    authorized_by INT,
+    reference VARCHAR(100),
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_lot_id) REFERENCES material_lots(id),
+    FOREIGN KEY (location_id) REFERENCES stock_locations(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (reverses_movement_id) REFERENCES material_movements(id),
+    FOREIGN KEY (reverses_transfer_id) REFERENCES stock_transfers(id),
+    INDEX idx_adj_number (adjustment_number),
+    INDEX idx_adj_date (adjustment_date),
+    INDEX idx_adj_type (adjustment_type)
+);
+
+-- =============================================
+-- COSTING: actual cost entries per order
+-- =============================================
+CREATE TABLE IF NOT EXISTS order_cost_entries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    category VARCHAR(30) NOT NULL,
+    amount FLOAT DEFAULT 0,
+    currency VARCHAR(10) DEFAULT 'INR',
+    amount_base FLOAT DEFAULT 0,
+    entry_date DATE,
+    description VARCHAR(300),
+    source_type VARCHAR(30) DEFAULT 'manual',
+    source_id INT,
+    order_operation_id INT,
+    vendor_id INT,
+    supplier_id INT,
+    material_lot_id INT,
+    is_estimate BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (order_operation_id) REFERENCES order_operations(id),
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    FOREIGN KEY (material_lot_id) REFERENCES material_lots(id),
+    UNIQUE KEY uq_cost_source_category (source_type, source_id, category),
+    INDEX idx_cost_order (order_id),
+    INDEX idx_cost_category (category)
+);
+
+-- =============================================
+-- PROCUREMENT: supplier RFQs, quotes and comparison
+-- =============================================
+CREATE TABLE IF NOT EXISTS supplier_rfqs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    rfq_number VARCHAR(30) NOT NULL UNIQUE,
+    title VARCHAR(200),
+    material_id INT,
+    order_id INT,
+    quantity FLOAT DEFAULT 0,
+    unit VARCHAR(20) DEFAULT 'kg',
+    grade VARCHAR(50),
+    rfq_date DATE NOT NULL,
+    due_date DATE,
+    required_date DATE,
+    status VARCHAR(20) DEFAULT 'draft',
+    delivery_terms VARCHAR(200),
+    payment_terms VARCHAR(100),
+    currency VARCHAR(10) DEFAULT 'INR',
+    notes TEXT,
+    awarded_quote_id INT,
+    awarded_at DATETIME,
+    awarded_by INT,
+    po_id INT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES materials(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (po_id) REFERENCES supplier_purchase_orders(id),
+    INDEX idx_srfq_number (rfq_number),
+    INDEX idx_srfq_date (rfq_date),
+    INDEX idx_srfq_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_quotes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    supplier_rfq_id INT NOT NULL,
+    supplier_id INT NOT NULL,
+    quote_reference VARCHAR(60),
+    quote_date DATE NOT NULL,
+    valid_until DATE,
+    quantity FLOAT DEFAULT 0,
+    unit VARCHAR(20) DEFAULT 'kg',
+    unit_price FLOAT DEFAULT 0,
+    currency VARCHAR(10) DEFAULT 'INR',
+    tax_percent FLOAT DEFAULT 0,
+    lead_time_days INT,
+    payment_terms VARCHAR(100),
+    delivery_terms VARCHAR(200),
+    quality_rating FLOAT,
+    status VARCHAR(20) DEFAULT 'received',
+    notes TEXT,
+    comparison_score FLOAT,
+    comparison_rank INT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (supplier_rfq_id) REFERENCES supplier_rfqs(id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    INDEX idx_sq_rfq (supplier_rfq_id),
+    INDEX idx_sq_supplier (supplier_id),
+    INDEX idx_sq_status (status)
+);
+
+-- =============================================
 -- ADD INDEXES IF NOT EXISTS
 -- =============================================
 -- Note: MySQL doesn't support ADD INDEX IF NOT EXISTS, so we skip this
 -- You can manually add indexes if needed
 
 SELECT 'Migration completed successfully!' AS status;
+
+
+-- =============================================
+-- DOCUMENTS & TRACEABILITY: extra attachment columns
+-- =============================================
+-- The attachments table already stored files against an entity; these columns
+-- add document control (category, revision, current/superseded) and richer
+-- metadata. Superseded revisions are kept so history is preserved.
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS title VARCHAR(200) AFTER original_name;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS file_type VARCHAR(50) AFTER file_name;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS is_primary BOOLEAN DEFAULT FALSE AFTER file_size;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS category VARCHAR(40) DEFAULT 'other' AFTER file_size;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS revision VARCHAR(20) AFTER category;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS issue_date DATE AFTER revision;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS notes TEXT AFTER issue_date;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS is_current BOOLEAN DEFAULT TRUE AFTER notes;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS supersedes_id INT AFTER is_current;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER uploaded_by;
+
+-- =============================================
+-- DISPATCH: shipments of finished goods to customers
+-- =============================================
+CREATE TABLE IF NOT EXISTS dispatches (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    dispatch_number VARCHAR(30) NOT NULL UNIQUE,
+    order_id INT NOT NULL,
+    customer_id INT,
+    dispatch_date DATE NOT NULL,
+    mode VARCHAR(20) DEFAULT 'surface',
+    transporter VARCHAR(150),
+    vehicle_number VARCHAR(50),
+    shipment_reference VARCHAR(100),
+    eway_bill_number VARCHAR(50),
+    invoice_number VARCHAR(60),
+    invoice_date DATE,
+    packing_list_ref VARCHAR(60),
+    destination VARCHAR(200),
+    status VARCHAR(20) DEFAULT 'prepared',
+    delivery_status VARCHAR(20) DEFAULT 'pending',
+    delivered_date DATE,
+    pod_reference VARCHAR(100),
+    receiver_name VARCHAR(120),
+    remarks TEXT,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (customer_id) REFERENCES customers(id),
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    INDEX idx_dispatch_order (order_id),
+    INDEX idx_dispatch_customer (customer_id),
+    INDEX idx_dispatch_date (dispatch_date),
+    INDEX idx_dispatch_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS dispatch_lines (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    dispatch_id INT NOT NULL,
+    packaging_record_id INT,
+    lot_id INT,
+    product_id INT,
+    quantity INT DEFAULT 0,
+    quantity_rejected INT DEFAULT 0,
+    label_ref VARCHAR(100),
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (dispatch_id) REFERENCES dispatches(id),
+    FOREIGN KEY (packaging_record_id) REFERENCES packaging_records(id),
+    FOREIGN KEY (lot_id) REFERENCES material_lots(id),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    INDEX idx_dl_dispatch (dispatch_id),
+    INDEX idx_dl_packaging (packaging_record_id)
+);
+
+-- =============================================
+-- ALERTS: per-user acknowledgement of derived alerts
+-- =============================================
+CREATE TABLE IF NOT EXISTS alert_acknowledgements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    alert_key VARCHAR(200) NOT NULL,
+    user_id INT NOT NULL,
+    acknowledged_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    note VARCHAR(300),
+    UNIQUE KEY uq_alert_ack_user (alert_key, user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_alert_key (alert_key),
+    INDEX idx_alert_user (user_id)
+);

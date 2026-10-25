@@ -7,6 +7,10 @@
 <div class="mb-3"><label class="text-muted small">Density</label><div class="fw-medium">{{ material.density }} kg/m³</div></div>
 <div class="mb-3"><label class="text-muted small">Grade</label><div class="fw-medium">{{ material.grade or '-' }}</div></div>
 <div class="mb-3"><label class="text-muted small">HSN Code</label><div class="fw-medium">{{ material.hsn_code or '-' }}</div></div>
+<div class="mb-3"><label class="text-muted small">Supplier</label><div class="fw-medium">
+{% if material.supplier %}<a href="{{ url_for('supplier.view', id=material.supplier.id) }}">{{ material.supplier.company_name }}</a> <span class="badge bg-light text-dark">{{ material.supplier.supplier_code }}</span>
+{% else %}{{ material.default_supplier or '-' }}{% endif %}
+</div></div>
 <div class="mb-3"><label class="text-muted small">Default Rate</label><div class="fw-medium">{{ material.rate_unit }} {{ material.default_rate }}</div></div>
 </div></div></div>
 <div class="col-lg-6"><div class="card mb-4"><div class="card-header"><span>Rate History</span></div><div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Date</th><th>Rate</th><th>Unit</th></tr></thead><tbody>

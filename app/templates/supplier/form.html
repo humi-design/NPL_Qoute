@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit Supplier' if supplier else 'New Supplier' }} - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Master Data</li>
+<li class="breadcrumb-item"><a href="{{ url_for('supplier.index') }}">Suppliers</a></li>
+<li class="breadcrumb-item active">{{ 'Edit' if supplier else 'New' }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Edit Supplier' if supplier else 'New Supplier' }}</h1>
+        <p class="page-subtitle">{{ 'Update supplier information' if supplier else 'Add a new supplier to the master data' }}</p>
+    </div>
+</div>
+
+<form method="POST" action="" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Basic Info -->
+            <div class="card mb-4">
+                <div class="card-header"><span>Basic Information</span></div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.supplier_code.label.text }} *</label>
+                            {{ form.supplier_code(class="form-control", readonly=supplier) }}
+                            {% if form.supplier_code.errors %}
+                            <div class="text-danger small mt-1">{{ form.supplier_code.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.supplier_type_id.label.text }}</label>
+                            {{ form.supplier_type_id(class="form-select") }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.company_name.label.text }} *</label>
+                        {{ form.company_name(class="form-control") }}
+                        {% if form.company_name.errors %}
+                        <div class="text-danger small mt-1">{{ form.company_name.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Info -->
+            <div class="card mb-4">
+                <div class="card-header"><span>Contact Information</span></div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.contact_person.label.text }}</label>
+                            {{ form.contact_person(class="form-control") }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.email.label.text }}</label>
+                            {{ form.email(class="form-control", type="email") }}
+                            {% if form.email.errors %}
+                            <div class="text-danger small mt-1">{{ form.email.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.phone.label.text }}</label>
+                            {{ form.phone(class="form-control") }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.mobile.label.text }}</label>
+                            {{ form.mobile(class="form-control") }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.website.label.text }}</label>
+                            {{ form.website(class="form-control") }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address -->
+            <div class="card mb-4">
+                <div class="card-header"><span>Address</span></div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.address_line1.label.text }}</label>
+                            {{ form.address_line1(class="form-control") }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.address_line2.label.text }}</label>
+                            {{ form.address_line2(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.city.label.text }}</label>
+                            {{ form.city(class="form-control") }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.state.label.text }}</label>
+                            {{ form.state(class="form-control") }}
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">{{ form.postal_code.label.text }}</label>
+                            {{ form.postal_code(class="form-control") }}
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">{{ form.country.label.text }}</label>
+                            {{ form.country(class="form-control") }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tax / business identifiers -->
+            <div class="card mb-4">
+                <div class="card-header"><span>Tax &amp; Business Identifiers</span></div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">{{ form.gst_vat.label.text }}</label>
+                            {{ form.gst_vat(class="form-control") }}
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">{{ form.pan.label.text }}</label>
+                            {{ form.pan(class="form-control") }}
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">{{ form.cin.label.text }}</label>
+                            {{ form.cin(class="form-control") }}
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">{{ form.tax_id.label.text }}</label>
+                            {{ form.tax_id(class="form-control") }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Commercial terms -->
+            <div class="card mb-4">
+                <div class="card-header"><span>Commercial Terms</span></div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.default_currency.label.text }}</label>
+                            {{ form.default_currency(class="form-select") }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.payment_terms.label.text }}</label>
+                            {{ form.payment_terms(class="form-control", placeholder="e.g., Net 30") }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.lead_time.label.text }}</label>
+                            {{ form.lead_time(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">{{ form.document_references.label.text }}</label>
+                        {{ form.document_references(class="form-control", rows="2",
+                           placeholder="e.g., ISO 9001 cert no., agreement reference, vendor code") }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="card mb-4">
+                <div class="card-header"><span>Notes</span></div>
+                <div class="card-body">
+                    <div class="mb-0">
+                        {{ form.notes(class="form-control", rows="3") }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attachments -->
+            <div class="card mb-4">
+                <div class="card-header"><span>Documents</span></div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <input type="file" class="form-control" name="attachments" multiple accept=".pdf,.png,.jpg,.jpeg,.zip,.xlsx,.docx">
+                        <small class="text-muted">Upload certificates, agreements or other documents (PDF, images, ZIP, XLSX, DOCX)</small>
+                    </div>
+                    {% if attachments %}
+                    <div class="list-group">
+                        {% for attachment in attachments %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-file-earmark me-2"></i>
+                                {{ attachment.original_name }}
+                                <small class="text-muted">({{ (attachment.file_size / 1024)|round(1) }} KB)</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('supplier.index') if not supplier else url_for('supplier.view', id=supplier.id) }}"
+                   class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i> {{ 'Update Supplier' if supplier else 'Create Supplier' }}
+                </button>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header"><span>Settings</span></div>
+                <div class="card-body">
+                    <div class="form-check">
+                        {{ form.is_active(class="form-check-input") }}
+                        <label class="form-check-label">{{ form.is_active.label.text }}</label>
+                    </div>
+                </div>
+            </div>
+            {% if not supplier %}
+            <div class="card">
+                <div class="card-header"><span>Tip</span></div>
+                <div class="card-body text-muted small">
+                    Supplier types are configurable. Manage them from
+                    <a href="{{ url_for('supplier.types') if current_user.has_permission('admin') else '#' }}">Supplier Types</a>.
+                    Materials and grades can be linked after the supplier is saved.
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}

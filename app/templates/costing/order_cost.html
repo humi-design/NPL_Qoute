@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}{{ order.order_number }} Costing - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Costing</li>
+<li class="breadcrumb-item"><a href="{{ url_for('costing.index') }}">Order Costing</a></li>
+<li class="breadcrumb-item active">{{ order.order_number }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ order.order_number }} — Costing</h1>
+        <p class="page-subtitle">{{ order.part_description or '' }}
+            {% if order.customer %} · {{ order.customer.company_name }}{% endif %}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('orders.view_order', id=order.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-clipboard-data"></i> Order</a>
+        <a href="{{ url_for('costing.new_cost_entry', id=order.id) }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Add Cost Entry</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small">Estimated Total</div>
+        <h4 class="mb-0">{{ "{:,.2f}".format(cost.estimate_total) }}</h4>
+        <div class="small text-muted">{{ cost.estimate_source or 'No estimate source' }}</div>
+    </div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small">Actual Total</div>
+        <h4 class="mb-0">{{ "{:,.2f}".format(cost.actual_total) }}</h4>
+        <div class="small text-muted">{{ cost.entry_count }} entries</div>
+    </div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small">Variance</div>
+        <h4 class="mb-0 {% if cost.variance > 0 %}text-danger{% elif cost.variance < 0 %}text-success{% endif %}">
+            {{ "{:,.2f}".format(cost.variance) }}</h4>
+        <div class="small text-muted">{{ "{:,.1f}".format(cost.variance_percent) if cost.variance_percent is not none else '—' }}%</div>
+    </div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small">Order Value / Margin</div>
+        <h4 class="mb-0">{{ "{:,.0f}".format(cost.order_value) }}</h4>
+        <div class="small text-muted">
+            {% if cost.margin_percent_actual is not none %}Margin {{ "{:,.1f}".format(cost.margin_percent_actual) }}%{% else %}No actual cost yet{% endif %}
+        </div>
+    </div></div></div>
+</div>
+
+{% if cost.missing %}
+<div class="alert alert-warning border">
+    <strong><i class="bi bi-exclamation-triangle me-1"></i>Incomplete cost picture</strong>
+    <ul class="mb-0 small">
+        {% for m in cost.missing %}<li>{{ m }}</li>{% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+    <div class="card-header">Cost by category (estimated vs actual)</div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead class="table-light"><tr>
+                <th>Category</th><th class="text-end">Estimated</th>
+                <th class="text-end">Actual</th><th class="text-end">Variance</th>
+                <th class="text-end">Unit (Actual)</th></tr></thead>
+            <tbody>
+                {% for key, label in cost.categories %}
+                <tr>
+                    <td>{{ label }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(cost.estimate[key]) }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(cost.actual[key]) }}</td>
+                    <td class="text-end {% if cost.actual[key] - cost.estimate[key] > 0 %}text-danger{% elif cost.actual[key] - cost.estimate[key] < 0 %}text-success{% endif %}">
+                        {{ "{:,.2f}".format(cost.actual[key] - cost.estimate[key]) }}</td>
+                    <td class="text-end">
+                        {% if order.quantity_ordered %}
+                        {{ "{:,.4f}".format(cost.actual[key] / order.quantity_ordered) }}
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+                <tr>
+                    <th>Total</th>
+                    <th class="text-end">{{ "{:,.2f}".format(cost.estimate_total) }}</th>
+                    <th class="text-end">{{ "{:,.2f}".format(cost.actual_total) }}</th>
+                    <th class="text-end">{{ "{:,.2f}".format(cost.variance) }}</th>
+                    <th></th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">Actual cost per operation</div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead class="table-light"><tr>
+                <th>#</th><th>Operation</th><th>Vendor</th>
+                <th class="text-end">Planned Qty</th><th class="text-end">Actual Cost</th>
+                <th class="text-end">Entries</th></tr></thead>
+            <tbody>
+                {% for op in order.operations.order_by('sequence').all() %}
+                <tr>
+                    <td>{{ op.sequence }}</td>
+                    <td>{{ op.operation_name }}</td>
+                    <td class="small">{{ op.vendor.vendor_name if op.vendor else 'In-house' }}</td>
+                    <td class="text-end">{{ op.quantity_planned }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(op_costs.get(op.id, {}).get('total', 0)) }}</td>
+                    <td class="text-end">{{ op_costs.get(op.id, {}).get('count', 0) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-3">No operations.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Cost entries</div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead class="table-light"><tr>
+                <th>Date</th><th>Category</th><th>Description</th>
+                <th class="text-end">Amount</th><th>Currency</th>
+                <th>Source</th><th class="text-end">Actions</th></tr></thead>
+            <tbody>
+                {% for e in entries %}
+                <tr>
+                    <td class="small">{{ e.entry_date }}</td>
+                    <td><span class="badge bg-secondary">{{ e.category }}</span></td>
+                    <td class="small">{{ e.description or '—' }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(e.amount) }}</td>
+                    <td class="small text-muted">{{ e.currency }}</td>
+                    <td class="small text-muted">{{ e.source_type }}{% if e.source_id %} #{{ e.source_id }}{% endif %}</td>
+                    <td class="text-end">
+                        {% if e.source_type == 'manual' %}
+                        <form method="POST" action="{{ url_for('costing.delete_cost_entry', id=e.id) }}"
+                              class="d-inline" onsubmit="return confirm('Delete this cost entry?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted small">linked</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No cost entries recorded.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

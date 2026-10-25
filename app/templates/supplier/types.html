@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Supplier Types - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Master Data</li>
+<li class="breadcrumb-item"><a href="{{ url_for('supplier.index') }}">Suppliers</a></li>
+<li class="breadcrumb-item active">Supplier Types</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Supplier Types</h1>
+        <p class="page-subtitle">Configurable supplier categories (data-driven, not hardcoded)</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('supplier.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Suppliers
+        </a>
+        <a href="{{ url_for('supplier.new_type') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Add Type
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Type Name</th>
+                        <th>Description</th>
+                        <th class="text-end">Suppliers</th>
+                        <th class="text-end">Order</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for t in types %}
+                    <tr>
+                        <td><strong>{{ t.type_code }}</strong></td>
+                        <td>{{ t.type_name }}</td>
+                        <td class="text-muted">{{ t.description or '-' }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('supplier.index', type=t.id) }}">{{ counts.get(t.id, 0) }}</a>
+                        </td>
+                        <td class="text-end">{{ t.sort_order }}</td>
+                        <td>
+                            {% if t.is_active %}
+                            <span class="badge-status badge-active">Active</span>
+                            {% else %}
+                            <span class="badge-status badge-inactive">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('supplier.edit_type', id=t.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('supplier.delete_type', id=t.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            data-confirm="Delete this supplier type? Only allowed when no suppliers use it."
+                                            {% if counts.get(t.id, 0) %}disabled title="In use - deactivate instead"{% endif %}>
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">No supplier types defined</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

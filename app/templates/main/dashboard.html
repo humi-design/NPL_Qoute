@@ -114,6 +114,143 @@
     </div>
 </div>
 
+
+<!-- Operations overview -->
+<div class="page-header mt-2">
+    <div>
+        <h2 class="page-title" style="font-size:1.25rem;">Operations</h2>
+        <p class="page-subtitle mb-0">Live figures from orders, vendors, inspections, stock and dispatches</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('alerts.index') }}" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-bell"></i> Alerts</a>
+        <a href="{{ url_for('orders.index', view='current') }}" class="btn btn-sm btn-outline-secondary">
+            Open Orders</a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <a href="{{ url_for('orders.index', view='current') }}" class="stat-card text-decoration-none">
+            <div class="stat-icon blue"><i class="bi bi-clipboard-check"></i></div>
+            <div class="stat-info">
+                <h4>{{ metrics.open_orders }}</h4>
+                <p>Open Orders</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="{{ url_for('orders.index', view='current', overdue='1') }}" class="stat-card text-decoration-none">
+            <div class="stat-icon red"><i class="bi bi-exclamation-triangle"></i></div>
+            <div class="stat-info">
+                <h4 class="{% if metrics.overdue_orders %}text-danger{% endif %}">{{ metrics.overdue_orders }}</h4>
+                <p>Overdue &middot; {{ metrics.due_soon_orders }} due in 7d</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="{{ url_for('alerts.index', category='material_shortage') }}" class="stat-card text-decoration-none">
+            <div class="stat-icon orange"><i class="bi bi-box-seam"></i></div>
+            <div class="stat-info">
+                <h4 class="{% if metrics.material_shortage_orders %}text-danger{% endif %}">{{ metrics.material_shortage_orders }}</h4>
+                <p>Material Shortages</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="{{ url_for('orders.vendor_processes') }}" class="stat-card text-decoration-none">
+            <div class="stat-icon purple"><i class="bi bi-truck"></i></div>
+            <div class="stat-info">
+                <h4>{{ metrics.work_at_vendors_qty }}</h4>
+                <p>At Vendors &middot; {{ metrics.delayed_vendor_operations }} delayed</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="{{ url_for('orders.inspections') }}" class="stat-card text-decoration-none">
+            <div class="stat-icon blue"><i class="bi bi-clipboard2-pulse"></i></div>
+            <div class="stat-info">
+                <h4>{{ metrics.inspections_pending }}</h4>
+                <p>Inspection Queue</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="{{ url_for('orders.index') }}" class="stat-card text-decoration-none">
+            <div class="stat-icon red"><i class="bi bi-x-octagon"></i></div>
+            <div class="stat-info">
+                <h4 class="{% if metrics.rejected_quantity %}text-danger{% endif %}">{{ metrics.rejected_quantity }}</h4>
+                <p>Rejected &middot; {{ metrics.rework_quantity }} rework</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="{{ url_for('inventory.index') }}" class="stat-card text-decoration-none">
+            <div class="stat-icon green"><i class="bi bi-box2"></i></div>
+            <div class="stat-info">
+                <h4>{{ metrics.finished_goods_available }}</h4>
+                <p>Finished Goods (ready)</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="{{ url_for('orders.dispatches') }}" class="stat-card text-decoration-none">
+            <div class="stat-icon purple"><i class="bi bi-truck-front"></i></div>
+            <div class="stat-info">
+                <h4>{{ metrics.dispatched_quantity }}</h4>
+                <p>Dispatched &middot; {{ metrics.dispatches_pending_delivery }} pending delivery</p>
+            </div>
+        </a>
+    </div>
+</div>
+
+{% if metrics.show_financials %}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Financial balances</span>
+                <a href="{{ url_for('procurement.supplier_invoices') }}" class="btn btn-sm btn-link">Payables</a>
+            </div>
+            <div class="card-body">
+                {% if metrics.has_financial_data %}
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Supplier payable outstanding</div>
+                        <h4 class="mb-0">₹ {{ "{:,.0f}".format(metrics.supplier_payable_outstanding) }}</h4>
+                        <small class="text-danger">₹ {{ "{:,.0f}".format(metrics.supplier_payable_overdue) }} overdue</small>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Vendor payable outstanding</div>
+                        <h4 class="mb-0">₹ {{ "{:,.0f}".format(metrics.vendor_payable_outstanding) }}</h4>
+                        <small class="text-danger">₹ {{ "{:,.0f}".format(metrics.vendor_payable_overdue) }} overdue</small>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Open purchase orders</div>
+                        <h4 class="mb-0">{{ metrics.open_po_count }}</h4>
+                        <small class="text-muted">₹ {{ "{:,.0f}".format(metrics.open_po_value) }} committed</small>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted small">Orders by status</div>
+                        <div class="small">
+                            {% for st, n in metrics.orders_by_status.items() %}
+                            <span class="badge bg-light text-dark me-1">{{ st|title }}: {{ n }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">
+                    No supplier invoices, vendor invoices or purchase orders recorded yet, so the
+                    payable balances show 0. They populate once invoices or POs are entered.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Charts and Tables -->
 <div class="row g-4">
     <!-- Quotation Trends Chart -->

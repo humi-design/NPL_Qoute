@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Suppliers - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Master Data</li>
+<li class="breadcrumb-item active">Suppliers</li>
+{% endblock %}
+
+{% macro sort_link(key, label) %}
+  {% set new_dir = 'desc' if (sort == key and dir == 'asc') else 'asc' %}
+  <a href="{{ url_for('supplier.index', search=search, status=status, type=type, sort=key, dir=new_dir, per_page=per_page) }}"
+     class="text-decoration-none text-dark">
+    {{ label }}
+    {% if sort == key %}
+      <i class="bi bi-caret-{{ 'up' if dir == 'asc' else 'down' }}-fill"></i>
+    {% else %}
+      <i class="bi bi-arrow-down-up text-muted small"></i>
+    {% endif %}
+  </a>
+{% endmacro %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Suppliers</h1>
+        <p class="page-subtitle">Procurement master &mdash; companies and materials we buy from</p>
+    </div>
+    <div class="page-actions">
+        {% if current_user.has_permission('admin') %}
+        <a href="{{ url_for('supplier.types') }}" class="btn btn-outline-primary">
+            <i class="bi bi-tags"></i> Supplier Types
+        </a>
+        {% endif %}
+        <a href="{{ url_for('supplier.export', search=search, status=status, type=type) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-download"></i> Export
+        </a>
+        <a href="{{ url_for('supplier.new') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Add Supplier
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="search"
+                           placeholder="Search code, name, contact, city, GST..." value="{{ search }}">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select name="type" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Types</option>
+                    {% for t in types %}
+                    <option value="{{ t.id }}" {% if type|string == t.id|string %}selected{% endif %}>{{ t.type_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Status</option>
+                    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="per_page" class="form-select" onchange="this.form.submit()">
+                    {% for n in [10, 25, 50, 100] %}
+                    <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }} / page</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ sort_link('code', 'Code') }}</th>
+                        <th>{{ sort_link('name', 'Company') }}</th>
+                        <th>{{ sort_link('type', 'Type') }}</th>
+                        <th>{{ sort_link('contact', 'Contact') }}</th>
+                        <th>{{ sort_link('city', 'Location') }}</th>
+                        <th>Materials</th>
+                        <th>{{ sort_link('lead_time', 'Lead Time') }}</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in suppliers.items %}
+                    {% set sm = summaries.get(s.id) %}
+                    <tr style="cursor: pointer;" onclick="window.location='{{ url_for('supplier.view', id=s.id) }}'">
+                        <td><strong>{{ s.supplier_code }}</strong></td>
+                        <td>
+                            <div>{{ s.company_name }}</div>
+                            <small class="text-muted">{{ s.gst_vat or '' }}</small>
+                        </td>
+                        <td>
+                            {% if s.supplier_type %}
+                            <span class="badge bg-info-subtle text-info-emphasis">{{ s.supplier_type.type_name }}</span>
+                            {% else %}<span class="text-muted">-</span>{% endif %}
+                        </td>
+                        <td>
+                            <div>{{ s.contact_person or '-' }}</div>
+                            <small class="text-muted">{{ s.email or s.phone or '' }}</small>
+                        </td>
+                        <td>{{ s.city or '-' }}{% if s.state %}, {{ s.state }}{% endif %}</td>
+                        <td>
+                            {% if sm and sm.supplied_materials %}
+                            <span class="badge bg-secondary">{{ sm.supplied_materials }}</span>
+                            {% if sm.preferred_materials %}
+                            <span class="badge bg-success" title="Preferred">{{ sm.preferred_materials }} pref</span>
+                            {% endif %}
+                            {% else %}<span class="text-muted">0</span>{% endif %}
+                        </td>
+                        <td>{{ s.lead_time or '-' }}{% if s.lead_time %} days{% endif %}</td>
+                        <td>
+                            {% if s.is_active %}
+                            <span class="badge-status badge-active">Active</span>
+                            {% else %}
+                            <span class="badge-status badge-inactive">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td onclick="event.stopPropagation();">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('supplier.view', id=s.id) }}" class="btn btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('supplier.edit', id=s.id) }}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="bi bi-truck" style="font-size: 2rem;"></i>
+                            <p class="mt-2">No suppliers found</p>
+                            <a href="{{ url_for('supplier.new') }}" class="btn btn-primary btn-sm">Add First Supplier</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if suppliers.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">
+            Showing {{ suppliers.items|length }} of {{ suppliers.total }} suppliers
+        </small>
+        <nav aria-label="Page navigation">
+            <ul class="pagination mb-0">
+                {% if suppliers.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('supplier.index', page=suppliers.prev_num, search=search, status=status, type=type, sort=sort, dir=dir, per_page=per_page) }}">Previous</a>
+                </li>
+                {% endif %}
+                {% for p in suppliers.iter_pages() %}
+                    {% if p %}
+                    <li class="page-item {% if p == suppliers.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('supplier.index', page=p, search=search, status=status, type=type, sort=sort, dir=dir, per_page=per_page) }}">{{ p }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                {% if suppliers.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('supplier.index', page=suppliers.next_num, search=search, status=status, type=type, sort=sort, dir=dir, per_page=per_page) }}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

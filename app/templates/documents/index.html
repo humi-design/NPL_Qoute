@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Documents - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Documents</li>
+<li class="breadcrumb-item active">Register</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Document Register</h1>
+        <p class="page-subtitle">Drawings, specifications, certificates, inspection reports and supplier documents — linked to the part, order, supplier, vendor or batch they belong to</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('documents.export', q=q, category=category, entity_type=entity_type) }}"
+           class="btn btn-outline-primary"><i class="bi bi-download"></i> Export</a>
+        <a href="{{ url_for('documents.new') }}" class="btn btn-primary">
+            <i class="bi bi-upload"></i> Upload Document</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small">Total documents</div>
+            <h3 class="mb-0">{{ total }}</h3>
+        </div></div>
+    </div>
+    {% for cat in ['drawing', 'material_certificate', 'inspection_report', 'supplier_document'] %}
+    <div class="col-6 col-md-2">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small">{{ cat.replace('_', ' ')|title }}</div>
+            <h3 class="mb-0">{{ category_counts.get(cat, 0) }}</h3>
+        </div></div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Search</label>
+                <input type="text" class="form-control form-control-sm" name="q"
+                       placeholder="Name, title or revision" value="{{ q }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Category</label>
+                <select name="category" class="form-select form-select-sm">
+                    <option value="">All categories</option>
+                    {% for c in categories %}
+                    <option value="{{ c }}" {% if category == c %}selected{% endif %}>{{ c.replace('_', ' ')|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Linked to</label>
+                <select name="entity_type" class="form-select form-select-sm">
+                    <option value="">All records</option>
+                    {% for e in entity_types %}
+                    <option value="{{ e }}" {% if entity_type == e %}selected{% endif %}>{{ e|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" name="current_only"
+                           value="1" id="current_only" {% if current_only %}checked{% endif %}>
+                    <label class="form-check-label small" for="current_only">Current revisions only</label>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-sm btn-primary w-100"><i class="bi bi-funnel"></i> Filter</button>
+            </div>
+        </form>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Document</th>
+                    <th>Category</th>
+                    <th>Revision</th>
+                    <th>Linked to</th>
+                    <th>Issue date</th>
+                    <th>Size</th>
+                    <th>Uploaded</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                {% set d = r.doc %}
+                <tr>
+                    <td>
+                        <div class="fw-medium">{{ d.display_name }}</div>
+                        <small class="text-muted">{{ d.original_name }}</small>
+                        {% if not d.is_current %}
+                        <span class="badge bg-secondary ms-1">Superseded</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge bg-light text-dark">{{ (d.category or 'other').replace('_', ' ')|title }}</span></td>
+                    <td>{{ d.revision or '—' }}</td>
+                    <td>
+                        {% if r.record_url %}
+                        <a href="{{ r.record_url }}">{{ r.record_label }}</a>
+                        {% else %}
+                        {{ r.record_label or (d.entity_type ~ ' #' ~ d.entity_id) }}
+                        {% endif %}
+                        <small class="text-muted d-block">{{ d.entity_type|title }}</small>
+                    </td>
+                    <td>{{ d.issue_date or '—' }}</td>
+                    <td class="small text-muted">{{ ((d.file_size or 0) / 1024)|round(1) }} KB</td>
+                    <td class="small text-muted">{{ d.uploaded_at.strftime('%Y-%m-%d') if d.uploaded_at else '—' }}</td>
+                    <td class="text-end text-nowrap">
+                        <a href="{{ url_for('documents.download', id=d.id) }}"
+                           class="btn btn-sm btn-outline-secondary" title="Download">
+                            <i class="bi bi-download"></i></a>
+                        {% if current_user.has_permission('write') %}
+                        <a href="{{ url_for('documents.edit', id=d.id) }}"
+                           class="btn btn-sm btn-outline-secondary" title="Edit">
+                            <i class="bi bi-pencil"></i></a>
+                        {% if d.is_current %}
+                        <form method="POST" action="{{ url_for('documents.supersede', id=d.id) }}"
+                              class="d-inline" data-confirm="Mark this revision as superseded?">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-outline-warning" title="Supersede">
+                                <i class="bi bi-arrow-repeat"></i></button>
+                        </form>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('documents.delete', id=d.id) }}"
+                              class="d-inline" data-confirm="Delete this document and its file?">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-outline-danger" title="Delete">
+                                <i class="bi bi-trash"></i></button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-center text-muted py-4">
+                    No documents found. <a href="{{ url_for('documents.new') }}">Upload one</a>.
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if pagination and pagination.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">{{ pagination.total }} document(s)</small>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('documents.index', page=pagination.prev_num, q=q, category=category, entity_type=entity_type, current_only=1 if current_only else 0) }}">Prev</a>
+                </li>
+                <li class="page-item disabled"><span class="page-link">{{ pagination.page }} / {{ pagination.pages }}</span></li>
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('documents.index', page=pagination.next_num, q=q, category=category, entity_type=entity_type, current_only=1 if current_only else 0) }}">Next</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

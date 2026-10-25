@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}{{ order.order_number }} - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('orders.index') }}">Orders</a></li>
+<li class="breadcrumb-item active">{{ order.order_number }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ order.order_number }}
+            {% if order.status == 'completed' %}<span class="badge-status badge-won">Completed</span>
+            {% elif order.status == 'cancelled' %}<span class="badge-status badge-inactive">Cancelled</span>
+            {% elif order.status == 'in_production' %}<span class="badge-status badge-sent">In Production</span>
+            {% elif order.status == 'on_hold' %}<span class="badge-status badge-pending">On Hold</span>
+            {% else %}<span class="badge-status badge-pending">{{ order.status|title }}</span>{% endif %}
+            {% if order.is_overdue %}<span class="badge-status badge-lost">Overdue</span>{% endif %}
+        </h1>
+        <p class="page-subtitle">
+            {{ order.customer.company_name if order.customer else '-' }}
+            · {{ order.part_description or 'No part description' }}
+            {% if order.drawing_number %} · Drg {{ order.drawing_number }}{% endif %}
+            {% if order.revision %} · Rev {{ order.revision }}{% endif %}
+        </p>
+    </div>
+    <div class="page-actions">
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="bi bi-arrow-repeat"></i> Status
+            </button>
+            <ul class="dropdown-menu">
+                {% for s in ['draft','confirmed','in_production','on_hold','completed','cancelled'] %}
+                <li>
+                    <form method="POST" action="{{ url_for('orders.set_order_status', id=order.id, status=s) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="dropdown-item" type="submit">{{ s.replace('_',' ')|title }}</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <a href="{{ url_for('orders.edit_order', id=order.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+        <a href="{{ url_for('orders.new_inspection', id=order.id) }}" class="btn btn-primary">
+            <i class="bi bi-clipboard-check"></i> New Inspection
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-2">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">Ordered</div><h4 class="mb-0">{{ summary.quantity_ordered }}</h4>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">Produced (accepted)</div><h4 class="mb-0">{{ summary.quantity_produced }}</h4>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">Rejected</div><h4 class="mb-0 text-danger">{{ summary.quantity_rejected }}</h4>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">Rework</div><h4 class="mb-0">{{ summary.quantity_rework }}</h4>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">Dispatched</div><h4 class="mb-0">{{ summary.quantity_dispatched }}</h4>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">Pending</div><h4 class="mb-0 {% if summary.pending_quantity %}text-danger{% endif %}">{{ summary.pending_quantity }}</h4>
+        </div></div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><span>Order Details</span></div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><th>Order Date</th><td>{{ order.order_date or '-' }}</td>
+                        <th>Due Date (planned)</th><td>{{ order.due_date or '-' }}</td></tr>
+                    <tr><th>Planned Start</th><td>{{ order.planned_start or '-' }}</td>
+                        <th>Actual Start</th><td>{{ order.actual_start or '-' }}</td></tr>
+                    <tr><th>Actual Completion</th><td>{{ order.actual_completion or '-' }}</td>
+                        <th>Priority</th><td>{{ order.priority|title }}</td></tr>
+                    <tr><th>Material Grade</th><td>{{ order.material_grade or '-' }}</td>
+                        <th>Standard</th><td>{{ order.standard or '-' }}</td></tr>
+                    <tr><th>Order Value</th><td>{{ "{:,.2f}".format(summary.order_value) }} {{ order.currency }}</td>
+                        <th>Completion</th><td>{{ summary.completion_percent }}%</td></tr>
+                </table>
+                {% if order.specifications %}
+                <div class="mt-2"><strong class="small">Specifications:</strong>
+                    <div class="text-muted small">{{ order.specifications }}</div></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><span>Material Requirement</span></div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><th>Planned requirement</th><td class="text-end">{{ requirement.planned }}</td></tr>
+                    <tr><th>Issued to production</th><td class="text-end">{{ requirement.issued }}</td></tr>
+                    <tr><th>Outstanding to issue</th><td class="text-end">{{ requirement.outstanding }}</td></tr>
+                    <tr><th>Recorded shortage</th>
+                        <td class="text-end {% if requirement.shortage %}text-danger{% endif %}">{{ requirement.shortage }}</td></tr>
+                </table>
+                <div class="small text-muted mt-2">
+                    Route: {{ summary.operations_complete }} of {{ summary.operation_count }} operations complete
+                    ({{ summary.vendor_operations }} subcontracted).
+                    {% if summary.open_inspections %}{{ summary.open_inspections }} inspection(s) pending.{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Manufacturing route -->
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Manufacturing Route (order-specific)</span>
+        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#addOp">
+            <i class="bi bi-plus-lg"></i> Add Operation
+        </button>
+    </div>
+    <div class="collapse" id="addOp">
+        <div class="card-body border-bottom bg-light">
+            <form method="POST" action="{{ url_for('orders.add_operation', id=order.id) }}" class="row g-2 align-items-end">
+                {{ op_form.hidden_tag() }}
+                <div class="col-md-1">
+                    <label class="form-label small">Seq</label>
+                    {{ op_form.sequence(class="form-control form-control-sm", value=(order.operations.count() + 1)) }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Operation Name *</label>
+                    {{ op_form.operation_name(class="form-control form-control-sm") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Process</label>
+                    {{ op_form.process_id(class="form-select form-select-sm") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Machine</label>
+                    {{ op_form.machine_id(class="form-select form-select-sm") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Planned Qty</label>
+                    {{ op_form.quantity_planned(class="form-control form-control-sm", value=order.quantity_ordered) }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Due Date</label>
+                    {{ op_form.due_date(class="form-control form-control-sm", type="date") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Vendor</label>
+                    {{ op_form.vendor_id(class="form-select form-select-sm") }}
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-3">
+                    <div class="form-check">
+                        {{ op_form.is_vendor(class="form-check-input") }}
+                        <label class="form-check-label small">Subcontract</label>
+                    </div>
+                    <div class="form-check">
+                        {{ op_form.is_final(class="form-check-input") }}
+                        <label class="form-check-label small">Final</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th><th>Operation</th><th>Vendor</th>
+                        <th class="text-end">Planned</th><th class="text-end">Issued</th>
+                        <th class="text-end">Returned</th><th class="text-end">Accepted</th>
+                        <th class="text-end">Rejected</th><th class="text-end">Rework</th>
+                        <th class="text-end">Pending</th><th>Due</th><th>Status</th><th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for op in order.operations.all() %}
+                    <tr class="{% if op.is_overdue %}table-danger{% endif %}">
+                        <td>{{ op.sequence }}</td>
+                        <td>{{ op.operation_name }}
+                            {% if op.is_final %}<span class="badge-status badge-won">Final</span>{% endif %}
+                            {% if op.is_vendor %}<span class="badge-status badge-sent">Vendor</span>{% endif %}
+                        </td>
+                        <td>{{ op.vendor.vendor_name if op.vendor else '—' }}</td>
+                        <td class="text-end">{{ op.quantity_planned }}</td>
+                        <td class="text-end">{{ op.issued_quantity }}</td>
+                        <td class="text-end">{{ op.returned_quantity }}</td>
+                        <td class="text-end">{{ op.accepted_quantity }}</td>
+                        <td class="text-end {% if op.rejected_quantity %}text-danger{% endif %}">{{ op.rejected_quantity }}</td>
+                        <td class="text-end">{{ op.rework_quantity }}</td>
+                        <td class="text-end">{{ op.pending_quantity }}</td>
+                        <td>{{ op.due_date or '-' }}</td>
+                        <td>
+                            {% if op.status == 'completed' %}<span class="badge-status badge-won">Completed</span>
+                            {% elif op.status == 'cancelled' %}<span class="badge-status badge-inactive">Cancelled</span>
+                            {% elif op.status == 'in_progress' %}<span class="badge-status badge-sent">In Progress</span>
+                            {% else %}<span class="badge-status badge-pending">Pending</span>{% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse"
+                                    data-bs-target="#txn{{ op.id }}" title="Post movement"><i class="bi bi-arrow-left-right"></i></button>
+                            <a href="{{ url_for('orders.edit_operation', op_id=op.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
+                            <form method="POST" class="d-inline" action="{{ url_for('orders.delete_operation', op_id=op.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-outline-danger" data-confirm="Delete this operation?"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="txn{{ op.id }}">
+                        <td colspan="13" class="bg-light">
+                            <form method="POST" action="{{ url_for('orders.add_transaction', op_id=op.id) }}" class="row g-2 align-items-end">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="col-md-2">
+                                    <label class="form-label small">Movement</label>
+                                    <select name="transaction_type" class="form-select form-select-sm">
+                                        <option value="issue">Issue</option>
+                                        <option value="return">Return</option>
+                                        <option value="accept">Accept</option>
+                                        <option value="reject">Reject</option>
+                                        <option value="rework">Rework</option>
+                                        <option value="scrap">Scrap</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Date</label>
+                                    <input type="date" name="transaction_date" class="form-control form-control-sm" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Quantity</label>
+                                    <input type="number" name="quantity" class="form-control form-control-sm" min="1" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Challan / DC Ref</label>
+                                    <input type="text" name="reference" class="form-control form-control-sm"
+                                           placeholder="Duplicate refs are rejected">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Notes</label>
+                                    <input type="text" name="notes" class="form-control form-control-sm">
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="submit" class="btn btn-sm btn-primary w-100">Post</button>
+                                </div>
+                            </form>
+                            {% if op.transactions.count() %}
+                            <div class="small text-muted mt-2">
+                                Movements:
+                                {% for t in op.transactions.order_by('transaction_date').all() %}
+                                    <span class="badge bg-secondary">{{ t.transaction_date }} {{ t.transaction_type }} {{ t.quantity }}{% if t.reference %} ({{ t.reference }}){% endif %}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="13" class="text-center text-muted py-3">
+                        No route defined yet. Add the operations this part actually follows.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <!-- Material lots -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Material Lots (heat / lot / certificate)</span>
+                <a href="{{ url_for('orders.new_lot', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus-lg"></i> Add Lot</a>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Lot</th><th>Grade</th><th>Heat/Lot</th>
+                        <th class="text-end">Recv</th><th class="text-end">Alloc</th>
+                        <th class="text-end">Avail</th><th class="text-end">Remain</th></tr></thead>
+                    <tbody>
+                    {% for lot in order.lots.all() %}
+                        <tr>
+                            <td>{{ lot.lot_number }}</td>
+                            <td>{{ lot.grade or '-' }}</td>
+                            <td>{{ lot.heat_number or lot.batch_number or '-' }}
+                                {% if lot.certificate_ref %}<div class="text-muted small">Cert {{ lot.certificate_ref }}</div>{% endif %}
+                            </td>
+                            <td class="text-end">{{ lot.quantity_received }}</td>
+                            <td class="text-end">{{ lot.quantity_allocated }}</td>
+                            <td class="text-end">{{ lot.quantity_available }}</td>
+                            <td class="text-end {% if not lot.quantity_remaining %}text-danger{% endif %}">{{ lot.quantity_remaining }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="7" class="text-center text-muted py-3">No material lots linked.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inspections -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Inspections (incoming / in-process / final)</span>
+                <a href="{{ url_for('orders.new_inspection', id=order.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus-lg"></i> Add</a>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Number</th><th>Type</th><th>Date</th>
+                        <th class="text-end">Insp</th><th class="text-end">Acc</th>
+                        <th class="text-end">Rej</th><th>Result</th><th></th></tr></thead>
+                    <tbody>
+                    {% for insp in order.inspections.all() %}
+                        <tr>
+                            <td>{{ insp.inspection_number }}</td>
+                            <td>{{ insp.inspection_type.replace('_',' ')|title }}</td>
+                            <td>{{ insp.inspection_date }}</td>
+                            <td class="text-end">{{ insp.quantity_inspected }}</td>
+                            <td class="text-end">{{ insp.quantity_accepted }}</td>
+                            <td class="text-end {% if insp.quantity_rejected %}text-danger{% endif %}">{{ insp.quantity_rejected }}</td>
+                            <td>
+                                {% if insp.result == 'passed' %}<span class="badge-status badge-won">Passed</span>
+                                {% elif insp.result == 'failed' %}<span class="badge-status badge-lost">Failed</span>
+                                {% elif insp.result == 'partial' %}<span class="badge-status badge-sent">Partial</span>
+                                {% else %}<span class="badge-status badge-pending">Pending</span>{% endif %}
+                            </td>
+                            <td class="text-end"><a href="{{ url_for('orders.edit_inspection', insp_id=insp.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="8" class="text-center text-muted py-3">No inspections recorded.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Packaging & completion -->
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Final Inspection &amp; Packaging / Warehouse Receipt</span>
+        <a href="{{ url_for('orders.new_packaging', id=order.id) }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-plus-lg"></i> Add Packaging</a>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>Date</th><th>Type</th><th class="text-end">Packed</th>
+                <th class="text-end">Accepted</th><th class="text-end">Rejected</th>
+                <th>Warehouse Receipt</th><th>Location</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+            {% for rec in order.packaging.all() %}
+                <tr>
+                    <td>{{ rec.packaging_date }}</td>
+                    <td>{{ (rec.packaging_type or '-')|title }}</td>
+                    <td class="text-end">{{ rec.quantity_packed }}</td>
+                    <td class="text-end">{{ rec.quantity_accepted }}</td>
+                    <td class="text-end">{{ rec.quantity_rejected }}</td>
+                    <td>{{ rec.warehouse_receipt_number or '—' }}
+                        {% if rec.warehouse_receipt_date %}<div class="text-muted small">{{ rec.warehouse_receipt_date }}</div>{% endif %}</td>
+                    <td>{{ rec.location or '-' }}</td>
+                    <td>
+                        {% if rec.status == 'dispatched' %}<span class="badge-status badge-won">Dispatched</span>
+                        {% elif rec.status == 'warehoused' %}<span class="badge-status badge-sent">Warehoused</span>
+                        {% else %}<span class="badge-status badge-pending">Packed</span>{% endif %}
+                    </td>
+                    <td class="text-end"><a href="{{ url_for('orders.edit_packaging', rec_id=rec.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="9" class="text-center text-muted py-3">Not yet packed.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<!-- Dispatch -->
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Dispatch (shipments to customer)</span>
+        <div>
+            <a href="{{ url_for('orders.dispatches', order_id=order.id) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-truck"></i> All</a>
+            {% if current_user.has_permission('write') %}
+            <a href="{{ url_for('orders.new_dispatch', id=order.id) }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-plus-lg"></i> New Dispatch</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body pb-0">
+        <div class="row g-2 text-center">
+            <div class="col"><div class="text-muted small">Warehoused</div><strong>{{ dispatch_summary.warehoused }}</strong></div>
+            <div class="col"><div class="text-muted small">Shipped</div><strong>{{ dispatch_summary.shipped }}</strong></div>
+            <div class="col"><div class="text-muted small">Remaining</div>
+                <strong class="{% if dispatch_summary.remaining %}text-danger{% endif %}">{{ dispatch_summary.remaining }}</strong></div>
+            <div class="col"><div class="text-muted small">To produce</div><strong>{{ dispatch_summary.remaining_to_produce }}</strong></div>
+            <div class="col"><div class="text-muted small">Dispatches</div><strong>{{ dispatch_summary.dispatch_count }}</strong></div>
+        </div>
+        {% if dispatch_summary.is_fully_shipped %}<div class="alert alert-success mt-3 mb-0 py-2 small">
+            <i class="bi bi-check-circle"></i> Fully shipped ({{ dispatch_summary.shipped }} of {{ dispatch_summary.ordered }}).</div>
+        {% elif dispatch_summary.is_partial %}<div class="alert alert-info mt-3 mb-0 py-2 small">
+            <i class="bi bi-info-circle"></i> Partially shipped ({{ dispatch_summary.shipped }} of {{ dispatch_summary.ordered }}).</div>
+        {% endif %}
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>Dispatch #</th><th>Date</th><th class="text-end">Qty</th>
+                <th>Status</th><th>Delivery</th><th></th></tr></thead>
+            <tbody>
+            {% for d in order.dispatches.all() %}
+                <tr>
+                    <td><a href="{{ url_for('orders.view_dispatch', id=d.id) }}">{{ d.dispatch_number }}</a></td>
+                    <td>{{ d.dispatch_date }}</td>
+                    <td class="text-end">{{ d.quantity_shipped }}</td>
+                    <td>{{ d.status.replace('_', ' ')|title }}</td>
+                    <td>{{ d.delivery_status|title }}</td>
+                    <td class="text-end"><a href="{{ url_for('orders.view_dispatch', id=d.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-3">Not yet dispatched.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Order documents -->
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Documents (drawings, specifications, certificates)</span>
+        {% if current_user.has_permission('write') %}
+        <a href="{{ url_for('documents.new', entity_type='order', entity_id=order.id) }}"
+           class="btn btn-sm btn-outline-primary"><i class="bi bi-upload"></i> Attach</a>
+        {% endif %}
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>Document</th><th>Category</th><th>Revision</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+            {% for d in documents %}
+                <tr>
+                    <td>{{ d.display_name }}</td>
+                    <td>{{ (d.category or 'other').replace('_', ' ')|title }}</td>
+                    <td>{{ d.revision or '—' }}</td>
+                    <td>{% if d.is_current %}<span class="badge bg-success">Current</span>{% else %}<span class="badge bg-secondary">Superseded</span>{% endif %}</td>
+                    <td class="text-end"><a href="{{ url_for('documents.download', id=d.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i></a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5" class="text-center text-muted py-3">No documents linked to this order.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Timeline -->
+<div class="card mb-3">
+    <div class="card-header"><span>Order Timeline (material → production → dispatch)</span></div>
+    <div class="card-body">
+        {% if timeline %}
+        <ul class="list-group list-group-flush">
+            {% for e in timeline %}
+            <li class="list-group-item d-flex gap-3">
+                <span class="text-muted small" style="min-width:6.5rem;">{{ e.date }}</span>
+                <span class="badge bg-{{ e.badge }}" style="min-width:6rem;">{{ e.kind.replace('_',' ')|title }}</span>
+                <span>{{ e.title }}{% if e.detail %} <span class="text-muted small">— {{ e.detail }}</span>{% endif %}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">No timeline events yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -26,8 +26,12 @@ def login():
             user.last_login = datetime.utcnow()
             db.session.commit()
             
-            next_page = request.args.get('next')
-            return redirect(next_page or url_for('main.dashboard'))
+            # Only redirect to a same-site path; never trust `next` blindly
+            # (open-redirect / phishing vector).
+            from app.utils import safe_redirect_target
+            next_page = safe_redirect_target(request.args.get('next'),
+                                             url_for('main.dashboard'))
+            return redirect(next_page)
         
         flash('Invalid username or password.', 'danger')
     
@@ -179,6 +183,21 @@ def delete_user(id):
     if user.id == current_user.id:
         flash('You cannot delete your own account.', 'danger')
         return redirect(url_for('auth.users'))
+    
+    # Refuse while the user still authored records (orders, quotations,
+    # GRNs, inspections...). Deleting anyway leaves dangling creator ids
+    # and would raise an IntegrityError once the DB enforces the FKs.
+    from app.utils import referential_delete_block
+    block = referential_delete_block(user, exclude_tables=('notifications',
+                                                           'alert_acknowledgements'))
+    if block:
+        flash(block, 'danger')
+        return redirect(url_for('auth.users'))
+    
+    # These rows belong to the user; remove them with the account.
+    from app.models import Notification, AlertAcknowledgement
+    Notification.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+    AlertAcknowledgement.query.filter_by(user_id=user.id).delete(synchronize_session=False)
     
     db.session.delete(user)
     db.session.commit()

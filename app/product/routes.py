@@ -5,7 +5,9 @@ from datetime import datetime
 from app.product import product_bp
 from app.models import db, Product, Attachment, ProductCostHistory, ProcessTemplate
 from app.forms import ProductForm, ProductSearchForm
-from app.utils import generate_product_code, upload_file, delete_file, export_products_to_excel, track_revision
+from app.utils import (generate_product_code, upload_file, delete_file,
+                       export_products_to_excel, track_revision,
+                       referential_delete_block)
 
 
 @product_bp.route('/')
@@ -229,9 +231,11 @@ def delete(id):
     """Delete product."""
     product = Product.query.get_or_404(id)
     
-    # Check for existing quotations
-    if product.quotations.count() > 0:
-        flash(f'Cannot delete product with existing quotations.', 'danger')
+    # Refuse while anything still references the product (quotations, RFQs,
+    # orders, vendor work orders, dispatch lines, cost history).
+    block = referential_delete_block(product)
+    if block:
+        flash(block, 'danger')
         return redirect(url_for('product.view', id=id))
     
     # Delete attachments

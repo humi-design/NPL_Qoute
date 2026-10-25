@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Ledger - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Inventory</li>
+<li class="breadcrumb-item active">Stock Ledger</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Stock Ledger</h1>
+        <p class="page-subtitle">Every receipt, allocation, issue, return, transfer, adjustment, rejection and warehouse receipt in one traceable list</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('inventory.export_ledger', lot_id=lot.id if lot else '', order_id=order.id if order else '', kind=kind) }}"
+           class="btn btn-outline-primary"><i class="bi bi-download"></i> Export</a>
+        <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-boxes"></i> Stock Position</a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Material Lot</label>
+                <select name="lot_id" class="form-select">
+                    <option value="">All lots</option>
+                    {% for l in lots %}
+                    <option value="{{ l.id }}" {% if lot and lot.id == l.id %}selected{% endif %}>{{ l.lot_number }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Order</label>
+                <select name="order_id" class="form-select">
+                    <option value="">All orders</option>
+                    {% for o in orders %}
+                    <option value="{{ o.id }}" {% if order and order.id == o.id %}selected{% endif %}>{{ o.order_number }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Type</label>
+                <select name="kind" class="form-select">
+                    <option value="">All types</option>
+                    {% for k in kinds %}
+                    <option value="{{ k }}" {% if kind == k %}selected{% endif %}>{{ k.replace('_', ' ')|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th><th>Type</th><th class="text-end">Qty</th>
+                    <th>Unit</th><th>Event</th><th>Detail</th><th>References</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in events %}
+                <tr>
+                    <td class="small">{{ e.date }}</td>
+                    <td><span class="badge bg-secondary">{{ e.kind.replace('_', ' ') }}</span></td>
+                    <td class="text-end">{{ "{:,.1f}".format(e.quantity) }}</td>
+                    <td class="small text-muted">{{ e.unit }}</td>
+                    <td>{{ e.title }}</td>
+                    <td class="small text-muted">{{ e.detail }}</td>
+                    <td class="small text-muted">{{ e.refs|join(', ') }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No stock events found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Purchasing - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Purchasing</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Purchasing</h1>
+        <p class="page-subtitle">Purchase orders, goods receipts and supplier payables</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('procurement.new_purchase_order') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Purchase Order
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Open POs</div>
+        <div class="h4 mb-0">{{ open_pos|length }}</div>
+        <div class="small text-muted">awaiting receipt</div>
+    </div></div></div>
+    <div class="col-6 col-md-3"><div class="card h-100 {% if overdue_pos %}border-danger{% endif %}"><div class="card-body">
+        <div class="text-muted small">Overdue POs</div>
+        <div class="h4 mb-0 {% if overdue_pos %}text-danger{% endif %}">{{ overdue_pos|length }}</div>
+        <div class="small text-muted">past expected date</div>
+    </div></div></div>
+    <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Recent POs</div>
+        <div class="h4 mb-0">{{ recent_pos|length }}</div>
+        <div class="small text-muted">latest 10</div>
+    </div></div></div>
+    <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Payables</div>
+        <div class="h4 mb-0"><a href="{{ url_for('procurement.supplier_invoices') }}" class="text-decoration-none">Invoices</a></div>
+        <div class="small text-muted"><a href="{{ url_for('procurement.supplier_payments') }}">Payments</a></div>
+    </div></div></div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Recent Purchase Orders</span>
+        <a href="{{ url_for('procurement.purchase_orders') }}" class="btn btn-sm btn-outline-primary">View all</a>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>PO</th><th>Supplier</th><th class="text-end">Ordered</th><th class="text-end">Received</th><th>Expected</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for po in recent_pos %}
+                <tr style="cursor:pointer;" onclick="window.location='{{ url_for('procurement.view_purchase_order', id=po.id) }}'">
+                    <td><strong>{{ po.po_number }}</strong></td>
+                    <td>{{ po.supplier.company_name if po.supplier else '-' }}</td>
+                    <td class="text-end">{{ po.ordered_quantity }}</td>
+                    <td class="text-end">{{ po.received_quantity }}</td>
+                    <td>{{ po.expected_date or '-' }}{% if po.is_overdue %} <span class="badge bg-danger">late</span>{% endif %}</td>
+                    <td>{{ po.status.replace('_',' ')|title }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No purchase orders yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

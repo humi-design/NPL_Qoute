@@ -720,14 +720,28 @@
                     <span>Dashboard</span>
                 </a>
             </div>
-            
-            <div class="sidebar-section">Sales</div>
             <div class="nav-item">
-                <a href="{{ url_for('customer.index') }}" class="nav-link {% if request.endpoint and 'customer' in request.endpoint %}active{% endif %}">
-                    <i class="bi bi-people"></i>
-                    <span>Customers</span>
+                <a href="{{ url_for('alerts.index') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('alerts.') %}active{% endif %}">
+                    <i class="bi bi-bell"></i>
+                    <span>Alerts</span>
+                    {% if alert_count %}<span class="badge bg-danger ms-auto">{{ alert_count }}</span>{% endif %}
                 </a>
             </div>
+            <div class="nav-item">
+                <a href="{{ url_for('documents.index') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('documents.') %}active{% endif %}">
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Documents</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('notifications.index') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('notifications.') %}active{% endif %}">
+                    <i class="bi bi-envelope"></i>
+                    <span>Notifications</span>
+                    {% if unread_notifications %}<span class="badge bg-secondary ms-auto">{{ unread_notifications }}</span>{% endif %}
+                </a>
+            </div>
+            
+            <div class="sidebar-section">Sales</div>
             <div class="nav-item">
                 <a href="{{ url_for('rfq.index') }}" class="nav-link {% if request.endpoint and 'rfq' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-file-earmark-text"></i>
@@ -741,6 +755,134 @@
                 </a>
             </div>
             
+            <div class="sidebar-section">Live Operations</div>
+            <div class="nav-item">
+                <a href="{{ url_for('orders.index', view='current') }}" class="nav-link {% if request.endpoint in ('orders.index', 'orders.view_order', 'orders.new_order', 'orders.edit_order') %}active{% endif %}">
+                    <i class="bi bi-clipboard-data"></i>
+                    <span>Orders</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('orders.materials') }}" class="nav-link {% if request.endpoint and 'material' in (request.endpoint or '') and request.endpoint.startswith('orders.') %}active{% endif %}">
+                    <i class="bi bi-boxes"></i>
+                    <span>Raw Material Tracker</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('orders.vendor_processes') }}" class="nav-link {% if request.endpoint in ('orders.vendor_processes', 'orders.export_vendor_processes') %}active{% endif %}">
+                    <i class="bi bi-diagram-2"></i>
+                    <span>Vendor Process Tracking</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('orders.inspections') }}" class="nav-link {% if request.endpoint and 'inspection' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Quality Inspection</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('orders.packaging') }}" class="nav-link {% if request.endpoint and 'packaging' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-box-seam"></i>
+                    <span>Final Inspection &amp; Packaging</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('orders.dispatches') }}" class="nav-link {% if request.endpoint and 'dispatch' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-truck"></i>
+                    <span>Dispatches</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">Inventory &amp; Costing</div>
+            <div class="nav-item">
+                <a href="{{ url_for('inventory.index') }}" class="nav-link {% if request.endpoint in ('inventory.index', 'inventory.export_position', 'inventory.lots', 'inventory.lot_detail') %}active{% endif %}">
+                    <i class="bi bi-boxes"></i>
+                    <span>Stock Position</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('inventory.ledger') }}" class="nav-link {% if request.endpoint and 'ledger' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-list-ul"></i>
+                    <span>Stock Ledger</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('inventory.locations') }}" class="nav-link {% if request.endpoint and 'location' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-geo-alt"></i>
+                    <span>Stock Locations</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('inventory.transfers') }}" class="nav-link {% if request.endpoint and 'transfer' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-arrow-left-right"></i>
+                    <span>Stock Transfers</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('inventory.adjustments') }}" class="nav-link {% if request.endpoint and 'adjustment' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-sliders"></i>
+                    <span>Stock Adjustments</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('costing.index') }}" class="nav-link {% if request.endpoint and 'costing' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-calculator"></i>
+                    <span>Costing</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">Master Data</div>
+            <div class="nav-item">
+                <a href="{{ url_for('customer.index') }}" class="nav-link {% if request.endpoint and 'customer' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-people"></i>
+                    <span>Customers</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('supplier.index') }}" class="nav-link {% if request.endpoint and 'supplier' in request.endpoint and 'type' not in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-box-seam"></i>
+                    <span>Suppliers</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('vendor.index') }}" class="nav-link {% if request.endpoint and 'vendor' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-truck"></i>
+                    <span>Vendors</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('supplier.types') }}" class="nav-link {% if request.endpoint and 'supplier' in request.endpoint and 'type' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-tags"></i>
+                    <span>Supplier Types</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">Purchasing</div>
+            <div class="nav-item">
+                <a href="{{ url_for('procurement.supplier_rfqs') }}" class="nav-link {% if request.endpoint and ('supplier_rfq' in (request.endpoint or '') or 'supplier_quote' in (request.endpoint or '')) %}active{% endif %}">
+                    <i class="bi bi-envelope-paper"></i>
+                    <span>Supplier RFQs</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('procurement.purchase_orders') }}" class="nav-link {% if request.endpoint and 'purchase_order' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-cart-plus"></i>
+                    <span>Purchase Orders</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('procurement.supplier_invoices') }}" class="nav-link {% if request.endpoint == 'procurement.supplier_invoices' %}active{% endif %}">
+                    <i class="bi bi-receipt"></i>
+                    <span>Supplier Invoices</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('procurement.supplier_payments') }}" class="nav-link {% if request.endpoint == 'procurement.supplier_payments' %}active{% endif %}">
+                    <i class="bi bi-cash-coin"></i>
+                    <span>Supplier Payments</span>
+                </a>
+            </div>
+
             <div class="sidebar-section">Products</div>
             <div class="nav-item">
                 <a href="{{ url_for('product.index') }}" class="nav-link {% if request.endpoint and 'product' in request.endpoint %}active{% endif %}">
@@ -769,9 +911,9 @@
                 </a>
             </div>
             <div class="nav-item">
-                <a href="{{ url_for('vendor.index') }}" class="nav-link {% if request.endpoint and 'vendor' in request.endpoint %}active{% endif %}">
-                    <i class="bi bi-truck"></i>
-                    <span>Vendors</span>
+                <a href="{{ url_for('vendor.work_orders') }}" class="nav-link {% if request.endpoint == 'vendor.work_orders' %}active{% endif %}">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Vendor Work Orders</span>
                 </a>
             </div>
             
@@ -841,16 +983,29 @@
                         {% endif %}
                     </a>
                     <div class="dropdown-menu dropdown-menu-end">
-                        <div class="dropdown-header">Notifications</div>
+                        <div class="dropdown-header d-flex justify-content-between align-items-center">
+                            <span>Notifications</span>
+                            {% if unread_count > 0 %}
+                            <form method="POST" action="{{ url_for('notifications.mark_all_read') }}" class="mb-0">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-link p-0">Mark all read</button>
+                            </form>
+                            {% endif %}
+                        </div>
                         <div class="dropdown-body" style="max-height: 300px; overflow-y: auto;">
                             {% for notification in notifications %}
-                            <a href="#" class="dropdown-item {% if not notification.is_read %}bg-light{% endif %}">
+                            <a href="{{ notification_link(notification) or url_for('notifications.index') }}"
+                               class="dropdown-item {% if not notification.is_read %}bg-light{% endif %}">
                                 <div class="fw-bold">{{ notification.title }}</div>
                                 <small class="text-muted">{{ notification.message }}</small>
                             </a>
                             {% else %}
                             <div class="dropdown-item text-muted">No notifications</div>
                             {% endfor %}
+                        </div>
+                        <div class="dropdown-footer border-top text-center">
+                            <a href="{{ url_for('notifications.index') }}" class="dropdown-item text-primary">
+                                <i class="bi bi-list-ul"></i> View all notifications</a>
                         </div>
                     </div>
                 </div>
@@ -885,7 +1040,7 @@
         <!-- Footer -->
         {% if current_user.is_authenticated %}
         <footer class="footer">
-            <p>&copy; {{ current_year|default(2024) }} {{ config.COMPANY_NAME }}. All rights reserved. | Powered by NPL ERP</p>
+            <p>&copy; {{ current_year|default(2024) }} {{ company.get('COMPANY_NAME') or config.COMPANY_NAME }}. All rights reserved. | Powered by NPL ERP</p>
         </footer>
         {% endif %}
     </main>

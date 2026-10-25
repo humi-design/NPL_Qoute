@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Quotes - {{ rfq.rfq_number }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Purchasing</li>
+<li class="breadcrumb-item"><a href="{{ url_for('procurement.supplier_rfqs') }}">Supplier RFQs</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('procurement.view_supplier_rfq', id=rfq.id) }}">{{ rfq.rfq_number }}</a></li>
+<li class="breadcrumb-item active">Compare</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Quote Comparison — {{ rfq.rfq_number }}</h1>
+        <p class="page-subtitle">{{ rfq.title or '' }} · {{ "{:,.1f}".format(rfq.quantity) }} {{ rfq.unit }}
+            · target currency {{ comparison.target_currency }}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('procurement.export_rfq_comparison', id=rfq.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-download"></i> Export</a>
+        <a href="{{ url_for('procurement.view_supplier_rfq', id=rfq.id) }}" class="btn btn-outline-secondary">Back</a>
+    </div>
+</div>
+
+<div class="alert alert-light border small">
+    <strong>How the recommendation is scored (weights):</strong>
+    {% for k, v in comparison.weights.items() %}{{ k.replace('_', ' ') }} {{ v }}%{% if not loop.last %}, {% endif %}{% endfor %}.
+    Price uses the tax-inclusive (landed) unit price converted to {{ comparison.target_currency }};
+    quality is derived from recorded receipt rejections unless a manual rating is given.
+    <strong>Nothing is awarded automatically</strong> — an administrator must approve a quote.
+</div>
+
+{% if comparison.missing %}
+<div class="alert alert-warning border small">
+    <strong><i class="bi bi-exclamation-triangle me-1"></i>Incomplete inputs</strong>
+    <ul class="mb-0">
+        {% for m in comparison.missing %}<li>{{ m }}</li>{% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if comparison.recommended %}
+<div class="card mb-3 border-success">
+    <div class="card-header bg-success-subtle">
+        <i class="bi bi-award me-1"></i> Recommended supplier
+    </div>
+    <div class="card-body">
+        <h4 class="mb-1">{{ comparison.recommended.quote.supplier.company_name if comparison.recommended.quote.supplier else 'Supplier' }}</h4>
+        <div class="mb-2">Score <strong>{{ comparison.recommended.total_score }}/100</strong></div>
+        <ul class="small mb-0">
+            {% for reason in comparison.reasons %}<li>{{ reason }}</li>{% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light"><tr>
+                <th>Rank</th><th>Supplier</th>
+                <th class="text-end">Unit</th><th class="text-end">Landed</th>
+                <th class="text-end">{{ comparison.target_currency }}</th>
+                <th class="text-end">Lead</th><th>Quality</th>
+                <th class="text-end">Price</th><th class="text-end">Lead</th>
+                <th class="text-end">Quality</th><th class="text-end">Payment</th>
+                <th class="text-end">Delivery</th><th class="text-end">Total</th>
+                <th class="text-end">Action</th></tr></thead>
+            <tbody>
+                {% for s in comparison.rows %}
+                <tr class="{% if s.rank == 1 and comparison.recommended %}table-success{% endif %}">
+                    <td><span class="badge bg-secondary">{{ s.rank }}</span></td>
+                    <td>{{ s.quote.supplier.company_name if s.quote.supplier else '—' }}</td>
+                    <td class="text-end">{{ "{:,.4f}".format(s.quote.unit_price) }}</td>
+                    <td class="text-end">{{ "{:,.4f}".format(s.quote.landed_price) }}</td>
+                    <td class="text-end">{{ "{:,.4f}".format(s.price_base) }}</td>
+                    <td class="text-end">{{ s.quote.lead_time_days if s.quote.lead_time_days is not none else '—' }}</td>
+                    <td class="small">
+                        {% if s.quality is not none %}{{ s.quality }}{% else %}<span class="text-muted">n/a</span>{% endif %}
+                        {% if s.quality_note %}<div class="text-muted" style="font-size:.75rem">{{ s.quality_note }}</div>{% endif %}
+                    </td>
+                    <td class="text-end">{{ s.price_score }}</td>
+                    <td class="text-end">{{ s.lead_score }}</td>
+                    <td class="text-end">{{ s.quality_score }}</td>
+                    <td class="text-end">{{ s.payment_score }}</td>
+                    <td class="text-end">{{ s.delivery_score }}</td>
+                    <td class="text-end fw-semibold">{{ s.total_score }}</td>
+                    <td class="text-end">
+                        {% if current_user.has_permission('admin') and not rfq.is_awarded %}
+                        <form method="POST" action="{{ url_for('procurement.award_supplier_quote', id=rfq.id, quote_id=s.quote.id) }}"
+                              class="d-inline" onsubmit="return confirm('Approve (award) this quote?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-outline-success">Approve</button>
+                        </form>
+                        {% elif rfq.awarded_quote_id == s.quote.id %}
+                        <span class="badge bg-success">Awarded</span>
+                        {% else %}
+                        <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="14" class="text-center text-muted py-4">No quotes to compare.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

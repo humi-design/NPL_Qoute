@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Inspection - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('orders.index') }}">Orders</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('orders.view_order', id=order.id) }}">{{ order.order_number }}</a></li>
+<li class="breadcrumb-item active">Inspection</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Inspection — {{ order.order_number }}</h1>
+        <p class="page-subtitle">{{ order.part_description or '' }}{% if order.drawing_number %} · Drg {{ order.drawing_number }}{% endif %}</p>
+    </div>
+</div>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="card mb-4">
+        <div class="card-header"><span>Inspection Details</span></div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">Inspection Type</label>
+                    {{ form.inspection_type(class="form-select") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date *</label>
+                    {{ form.inspection_date(class="form-control", type="date") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Operation</label>
+                    {{ form.order_operation_id(class="form-select") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Material Lot</label>
+                    {{ form.lot_id(class="form-select") }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-2">
+                    <label class="form-label">Tolerance</label>
+                    {{ form.tolerance(class="form-control") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Sample Size</label>
+                    {{ form.sample_size(class="form-control") }}
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Acceptance Criteria</label>
+                    {{ form.acceptance_criteria(class="form-control", rows="2") }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <label class="form-label">Measurements</label>
+                    {{ form.measurements(class="form-control", rows="2",
+                       placeholder="Measured values / JSON") }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-2">
+                    <label class="form-label">Qty Inspected</label>
+                    {{ form.quantity_inspected(class="form-control") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Qty Accepted</label>
+                    {{ form.quantity_accepted(class="form-control") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Qty Rejected</label>
+                    {{ form.quantity_rejected(class="form-control") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Qty Rework</label>
+                    {{ form.quantity_rework(class="form-control") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Result</label>
+                    {{ form.result(class="form-select") }}
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <label class="form-label">Notes</label>
+                    {{ form.notes(class="form-control", rows="2") }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex justify-content-between">
+        <a href="{{ url_for('orders.view_order', id=order.id) }}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+</form>
+{% endblock %}

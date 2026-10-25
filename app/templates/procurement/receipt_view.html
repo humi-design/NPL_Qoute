@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}{{ receipt.receipt_number }} - Goods Receipt - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Purchasing</li>
+<li class="breadcrumb-item"><a href="{{ url_for('procurement.purchase_orders') }}">Purchase Orders</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('procurement.view_purchase_order', id=receipt.purchase_order.id) }}">{{ receipt.purchase_order.po_number }}</a></li>
+<li class="breadcrumb-item active">{{ receipt.receipt_number }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ receipt.receipt_number }}</h1>
+        <p class="page-subtitle">
+            PO <a href="{{ url_for('procurement.view_purchase_order', id=receipt.purchase_order.id) }}">{{ receipt.purchase_order.po_number }}</a>
+            · {{ receipt.receipt_date }}
+            {% if receipt.supplier_document %}<span class="text-muted">· Challan {{ receipt.supplier_document }}</span>{% endif %}
+        </p>
+    </div>
+</div>
+
+{# ============ Add receipt line ============ #}
+<div class="card mb-4">
+    <div class="card-header"><span>Add Receipt Line (with batch / heat / inspection)</span></div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('procurement.add_receipt_line', id=receipt.id) }}">
+            {{ line_form.hidden_tag() }}
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <label class="form-label small">PO Line</label>
+                    {{ line_form.po_line_id(class="form-select form-select-sm") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Received Qty</label>
+                    {{ line_form.quantity_received(class="form-control form-control-sm", step="0.001") }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Rejected Qty</label>
+                    {{ line_form.quantity_rejected(class="form-control form-control-sm", step="0.001") }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small">Inspection Result</label>
+                    {{ line_form.inspection_status(class="form-select form-select-sm") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Batch No.</label>
+                    {{ line_form.batch_number(class="form-control form-control-sm") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Heat No.</label>
+                    {{ line_form.heat_number(class="form-control form-control-sm") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Lot No.</label>
+                    {{ line_form.lot_number(class="form-control form-control-sm") }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Certificate Ref.</label>
+                    {{ line_form.certificate_ref(class="form-control form-control-sm") }}
+                </div>
+                <div class="col-12">
+                    <label class="form-label small">Inspection Notes</label>
+                    {{ line_form.inspection_notes(class="form-control form-control-sm", rows="2") }}
+                </div>
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary mt-2"><i class="bi bi-check-lg"></i> Add Line</button>
+        </form>
+    </div>
+</div>
+
+{# ============ Receipt lines ============ #}
+<div class="card">
+    <div class="card-header"><span>Receipt Lines ({{ receipt.lines.count() }})</span></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr>
+                    <th>Material</th><th class="text-end">Received</th><th class="text-end">Rejected</th>
+                    <th class="text-end">Accepted</th><th>Batch</th><th>Heat</th><th>Lot</th>
+                    <th>Certificate</th><th>Inspection</th><th></th>
+                </tr></thead>
+                <tbody>
+                {% for l in receipt.lines.all() %}
+                    <tr>
+                        <td>{{ l.material.material_name if l.material else '-' }}</td>
+                        <td class="text-end">{{ l.quantity_received|round(3) }}</td>
+                        <td class="text-end {% if l.quantity_rejected %}text-danger{% endif %}">{{ l.quantity_rejected|round(3) }}</td>
+                        <td class="text-end text-success">{{ l.accepted_quantity|round(3) }}</td>
+                        <td>{{ l.batch_number or '-' }}</td>
+                        <td>{{ l.heat_number or '-' }}</td>
+                        <td>{{ l.lot_number or '-' }}</td>
+                        <td>{{ l.certificate_ref or '-' }}</td>
+                        <td>
+                            {% if l.inspection_status == 'passed' %}<span class="badge bg-success-subtle text-success-emphasis">Passed</span>
+                            {% elif l.inspection_status == 'failed' %}<span class="badge bg-danger-subtle text-danger-emphasis">Failed</span>
+                            {% elif l.inspection_status == 'partial' %}<span class="badge bg-warning-subtle text-warning-emphasis">Partial</span>
+                            {% else %}<span class="badge bg-secondary-subtle text-secondary-emphasis">Pending</span>{% endif %}
+                        </td>
+                        <td class="text-end">
+                            <form method="POST" action="{{ url_for('procurement.delete_receipt_line', line_id=l.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-outline-danger" data-confirm="Remove this receipt line?"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="10" class="text-center text-muted py-3">No receipt lines yet</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

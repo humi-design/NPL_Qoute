@@ -8,6 +8,7 @@ from app.models import (
     db, Customer, RFQ, Product, Material, Quotation, QuotationItem,
     ProductCostHistory, VendorRate, MaterialRate
 )
+from app.utils import compute_operational_metrics, _may_see_financials
 
 
 @main_bp.route('/')
@@ -128,10 +129,14 @@ def dashboard():
         desc('total_qty')
     ).limit(5).all()
     
-    # Notifications - now handled by context processor
-    # (no need to query here, use the injected notifications variable)
-    
+    # Operational metrics - all derived from live order / vendor / inspection /
+    # dispatch / payable records. Financial figures are gated by permission.
+    include_fin = _may_see_financials(current_user)
+    metrics = compute_operational_metrics(user=current_user,
+                                          include_financials=include_fin)
+
     return render_template('main/dashboard.html',
+                         metrics=metrics,
                          page_title='Dashboard',
                          todays_quotations=todays_quotations,
                          pending_rfqs=pending_rfqs,

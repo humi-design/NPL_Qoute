@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if document else 'Upload' }} Document - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('documents.index') }}">Documents</a></li>
+<li class="breadcrumb-item active">{{ 'Edit' if document else 'Upload' }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Edit Document' if document else 'Upload Document' }}</h1>
+        <p class="page-subtitle">
+            {% if document %}
+            Update the metadata for {{ document.display_name }}. The file itself is unchanged.
+            {% else %}
+            Link a drawing, specification, certificate or report to the record it belongs to.
+            {% endif %}
+        </p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('documents.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ form.entity_type.label(class="form-label") }}
+                            {{ form.entity_type(class="form-select") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.entity_id.label(class="form-label") }}
+                            {{ form.entity_id(class="form-control", placeholder="e.g. 12") }}
+                            <div class="form-text">The numeric ID of the product, order, supplier, vendor, lot or inspection.</div>
+                        </div>
+                        <div class="col-md-8">
+                            {{ form.title.label(class="form-label") }}
+                            {{ form.title(class="form-control", placeholder="e.g. Bracket drawing") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.revision.label(class="form-label") }}
+                            {{ form.revision(class="form-control", placeholder="A, B, 01...") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.category.label(class="form-label") }}
+                            {{ form.category(class="form-select") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.issue_date.label(class="form-label") }}
+                            {{ form.issue_date(class="form-control") }}
+                        </div>
+                        {% if not document %}
+                        <div class="col-12">
+                            {{ form.file.label(class="form-label") }}
+                            {{ form.file(class="form-control") }}
+                            <div class="form-text">
+                                Allowed: PDF, images, CAD (STEP/IGES/DXF/DWG), XLSX, DOCX, CSV, ZIP.
+                                Max 16 MB.
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="col-12">
+                            <div class="form-check">
+                                {{ form.is_current(class="form-check-input") }}
+                                {{ form.is_current.label(class="form-check-label") }}
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            {{ form.notes.label(class="form-label") }}
+                            {{ form.notes(class="form-control", rows="3") }}
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> {{ 'Save Changes' if document else 'Upload' }}
+                        </button>
+                        <a href="{{ url_for('documents.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><span>Revision control</span></div>
+            <div class="card-body small text-muted">
+                <p>Give the document a <strong>title</strong> and a <strong>revision</strong> so the
+                revision in force can be identified later.</p>
+                <p class="mb-0">Uploading a new file with the same title and category on the same
+                record automatically marks the previous revision as superseded. Superseded
+                revisions are kept so the history is preserved.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

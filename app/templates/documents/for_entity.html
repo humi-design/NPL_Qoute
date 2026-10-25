@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Documents - {{ record_label }} - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('documents.index') }}">Documents</a></li>
+<li class="breadcrumb-item active">{{ record_label }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ record_label }}</h1>
+        <p class="page-subtitle">{{ entity_type|title }} documents — drawings, certificates, reports and supplier documents</p>
+    </div>
+    <div class="page-actions">
+        {% if record_url %}<a href="{{ record_url }}" class="btn btn-outline-secondary">
+            <i class="bi bi-box-arrow-up-right"></i> Open record</a>{% endif %}
+        {% if current_user.has_permission('write') %}
+        <a href="{{ url_for('documents.new', entity_type=entity_type, entity_id=entity_id) }}"
+           class="btn btn-primary"><i class="bi bi-upload"></i> Upload</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr><th>Document</th><th>Category</th><th>Revision</th>
+                    <th>Issue date</th><th>Status</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for d in docs %}
+                <tr>
+                    <td><div class="fw-medium">{{ d.display_name }}</div>
+                        <small class="text-muted">{{ d.original_name }}</small></td>
+                    <td>{{ (d.category or 'other').replace('_', ' ')|title }}</td>
+                    <td>{{ d.revision or '—' }}</td>
+                    <td>{{ d.issue_date or '—' }}</td>
+                    <td>{% if d.is_current %}<span class="badge bg-success">Current</span>
+                        {% else %}<span class="badge bg-secondary">Superseded</span>{% endif %}</td>
+                    <td class="text-end">
+                        <a href="{{ url_for('documents.download', id=d.id) }}"
+                           class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i></a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No documents linked to this record yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Missing Cost Inputs - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Costing</li>
+<li class="breadcrumb-item"><a href="{{ url_for('costing.index') }}">Order Costing</a></li>
+<li class="breadcrumb-item active">Missing Inputs</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Missing Cost Inputs</h1>
+        <p class="page-subtitle">Orders whose estimated or actual cost is incomplete — nothing is guessed or invented</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light"><tr>
+                <th>Order</th><th>Customer</th><th class="text-end">Qty</th>
+                <th class="text-end">Estimated</th><th class="text-end">Actual</th>
+                <th>What is missing</th><th></th></tr></thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td class="fw-semibold">{{ r.order.order_number }}</td>
+                    <td class="small">{{ r.order.customer.company_name if r.order.customer else '—' }}</td>
+                    <td class="text-end">{{ r.order.quantity_ordered }}</td>
+                    <td class="text-end">{{ "{:,.0f}".format(r.cost.estimate_total) }}</td>
+                    <td class="text-end">{{ "{:,.0f}".format(r.cost.actual_total) }}</td>
+                    <td class="small">
+                        {% if not r.cost.has_estimate %}
+                        <div class="text-danger">• No estimate source (no quotation / product cost history)</div>
+                        {% endif %}
+                        {% if not r.cost.has_actual %}
+                        <div class="text-danger">• No actual cost recorded</div>
+                        {% endif %}
+                        {% for m in r.cost.missing %}<div class="text-warning-emphasis">• {{ m }}</div>{% endfor %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{{ url_for('costing.order_cost', id=r.order.id) }}" class="btn btn-sm btn-outline-secondary">View</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-4">
+                    Every order has a complete cost picture.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

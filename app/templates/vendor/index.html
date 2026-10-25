@@ -1,9 +1,176 @@
 {% extends "base.html" %}
+
+{% block title %}Vendors - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Vendors</li>
+{% endblock %}
+
+{% macro sort_link(key, label) %}
+  {% set new_dir = 'desc' if (sort == key and dir == 'asc') else 'asc' %}
+  <a href="{{ url_for('vendor.index', search=search, status=status, work=work, sort=key, dir=new_dir, per_page=per_page) }}"
+     class="text-decoration-none text-dark">
+    {{ label }}
+    {% if sort == key %}
+      <i class="bi bi-caret-{{ 'up' if dir == 'asc' else 'down' }}-fill"></i>
+    {% else %}
+      <i class="bi bi-arrow-down-up text-muted small"></i>
+    {% endif %}
+  </a>
+{% endmacro %}
+
 {% block content %}
-<div class="page-header"><div><h1 class="page-title">Vendors</h1></div><div class="page-actions"><a href="{{ url_for('vendor.new') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Vendor</a></div></div>
-<div class="card"><div class="card-body p-0"><table class="table table-hover mb-0"><thead><tr><th>Code</th><th>Vendor</th><th>Contact</th><th>Email</th><th>Lead Time</th><th>Actions</th></tr></thead><tbody>
-{% for v in vendors %}<tr onclick="window.location='{{ url_for('vendor.view', id=v.id) }}'" style="cursor:pointer"><td><strong>{{ v.vendor_code }}</strong></td><td>{{ v.vendor_name }}</td><td>{{ v.contact_person or '-' }}</td><td>{{ v.email or '-' }}</td><td>{{ v.lead_time or '-' }} days</td>
-<td><a href="{{ url_for('vendor.view', id=v.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td></tr>
-{% else %}<tr><td colspan="6" class="text-center text-muted py-4">No vendors found</td></tr>
-{% endfor %}</tbody></table></div></div>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Vendors</h1>
+        <p class="page-subtitle">Manage vendors, their outsourced work and quality</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('vendor.work_orders') }}" class="btn btn-outline-primary">
+            <i class="bi bi-clipboard-check"></i> Work Orders
+        </a>
+        <a href="{{ url_for('vendor.export', search=search, status=status, work=work) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-download"></i> Export
+        </a>
+        <a href="{{ url_for('vendor.new') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Add Vendor
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="search"
+                           placeholder="Search code, name, contact, GST..." value="{{ search }}">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Status</option>
+                    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="work" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Vendors</option>
+                    <option value="current" {% if work == 'current' %}selected{% endif %}>With Current Work</option>
+                    <option value="past" {% if work == 'past' %}selected{% endif %}>With Past Work</option>
+                    <option value="overdue" {% if work == 'overdue' %}selected{% endif %}>With Overdue Work</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="per_page" class="form-select" onchange="this.form.submit()">
+                    {% for n in [10, 25, 50, 100] %}
+                    <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }} / page</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ sort_link('code', 'Code') }}</th>
+                        <th>{{ sort_link('name', 'Vendor') }}</th>
+                        <th>{{ sort_link('contact', 'Contact') }}</th>
+                        <th>Work (Current / Past)</th>
+                        <th>Pending Qty</th>
+                        <th>{{ sort_link('lead_time', 'Lead Time') }}</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in vendors.items %}
+                    {% set s = v_summaries.get(v.id) %}
+                    <tr style="cursor: pointer;" onclick="window.location='{{ url_for('vendor.view', id=v.id) }}'">
+                        <td><strong>{{ v.vendor_code }}</strong></td>
+                        <td>{{ v.vendor_name }}</td>
+                        <td>
+                            <div>{{ v.contact_person or '-' }}</div>
+                            <small class="text-muted">{{ v.email or '' }}</small>
+                        </td>
+                        <td>
+                            {% if s %}
+                            <span class="badge bg-primary">{{ s.current_work }} current</span>
+                            <span class="badge bg-secondary">{{ s.past_work }} past</span>
+                            {% if s.overdue_work %}
+                            <span class="badge bg-danger">{{ s.overdue_work }} overdue</span>
+                            {% endif %}
+                            {% else %}-{% endif %}
+                        </td>
+                        <td>{{ s.pending_quantity if s else 0 }}</td>
+                        <td>{{ v.lead_time or '-' }}{% if v.lead_time %} days{% endif %}</td>
+                        <td>
+                            {% if v.is_active %}
+                            <span class="badge-status badge-active">Active</span>
+                            {% else %}
+                            <span class="badge-status badge-inactive">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('vendor.view', id=v.id) }}" class="btn btn-outline-primary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('vendor.edit', id=v.id) }}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="bi bi-truck" style="font-size: 2rem;"></i>
+                            <p class="mt-2">No vendors found</p>
+                            <a href="{{ url_for('vendor.new') }}" class="btn btn-primary btn-sm">Add First Vendor</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if vendors.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">
+            Showing {{ vendors.items|length }} of {{ vendors.total }} vendors
+        </small>
+        <nav aria-label="Page navigation">
+            <ul class="pagination mb-0">
+                {% if vendors.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('vendor.index', page=vendors.prev_num, search=search, status=status, work=work, sort=sort, dir=dir, per_page=per_page) }}">Previous</a>
+                </li>
+                {% endif %}
+                {% for p in vendors.iter_pages() %}
+                    {% if p %}
+                    <li class="page-item {% if p == vendors.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('vendor.index', page=p, search=search, status=status, work=work, sort=sort, dir=dir, per_page=per_page) }}">{{ p }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                {% if vendors.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('vendor.index', page=vendors.next_num, search=search, status=status, work=work, sort=sort, dir=dir, per_page=per_page) }}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}

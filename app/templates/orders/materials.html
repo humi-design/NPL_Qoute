@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Raw Material Tracker - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Live Operations</li>
+<li class="breadcrumb-item active">Raw Material Tracker</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Raw Material Tracker &amp; Allocation</h1>
+        <p class="page-subtitle">Lot-level balances with heat / lot / certificate traceability</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('orders.export_materials') }}" class="btn btn-outline-primary">
+            <i class="bi bi-download"></i> Export</a>
+        <a href="{{ url_for('orders.new_lot') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Receive Lot</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    {% for label, val in [('Received', totals.received), ('Allocated', totals.allocated),
+                          ('Issued', totals.issued), ('Available', totals.available),
+                          ('Remaining', totals.remaining), ('Shortage', totals.shortage)] %}
+    <div class="col-6 col-md-2">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">{{ label }}</div>
+            <h4 class="mb-0 {% if label == 'Shortage' and val %}text-danger{% endif %}">{{ "{:,.0f}".format(val) }}</h4>
+        </div></div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small">Search</label>
+                <input type="text" class="form-control" name="search"
+                       placeholder="Lot, heat, batch, certificate, grade, material..." value="{{ search }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Material</label>
+                <select name="material_id" class="form-select">
+                    <option value="">All</option>
+                    {% for m in materials %}
+                    <option value="{{ m.id }}" {% if material_id == m.id %}selected{% endif %}>{{ m.material_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Supplier</label>
+                <select name="supplier_id" class="form-select">
+                    <option value="">All</option>
+                    {% for s in suppliers %}
+                    <option value="{{ s.id }}" {% if supplier_id == s.id %}selected{% endif %}>{{ s.company_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1">
+                <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" name="low_stock" value="1" {% if low_stock == '1' %}checked{% endif %}>
+                    <label class="form-check-label small">Low</label>
+                </div>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% set sort_qs = {'search': search, 'material_id': material_id, 'supplier_id': supplier_id, 'low_stock': low_stock, 'dir': 'asc' if dir == 'desc' else 'desc', 'per_page': per_page} %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th><a href="{{ url_for('orders.materials', sort='lot', **sort_qs) }}">Lot</a></th>
+                        <th>Material / Grade</th>
+                        <th>Supplier / Refs</th>
+                        <th>Heat / Lot / Cert</th>
+                        <th class="text-end"><a href="{{ url_for('orders.materials', sort='received', **sort_qs) }}">Received</a></th>
+                        <th class="text-end">Allocated</th>
+                        <th class="text-end">Issued</th>
+                        <th class="text-end">Available</th>
+                        <th class="text-end">Remaining</th>
+                        <th>Move</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for lot in lots %}
+                    <tr>
+                        <td><strong>{{ lot.lot_number }}</strong>
+                            <div class="text-muted small">{{ lot.receipt_date or '' }}</div></td>
+                        <td>{{ lot.material.material_name if lot.material else '-' }}
+                            <div class="text-muted small">{{ lot.grade or lot.specification or '' }}</div></td>
+                        <td>{{ lot.supplier.company_name if lot.supplier else '-' }}
+                            <div class="text-muted small">
+                                {% if lot.order_id %}Order {{ lot.order_id }}{% endif %}
+                            </div></td>
+                        <td>{{ lot.heat_number or '-' }}
+                            <div class="text-muted small">{{ lot.batch_number or '' }}
+                                {% if lot.certificate_ref %}Cert {{ lot.certificate_ref }}{% endif %}</div></td>
+                        <td class="text-end">{{ "{:,.1f}".format(lot.quantity_received) }} {{ lot.unit }}</td>
+                        <td class="text-end">{{ "{:,.1f}".format(lot.quantity_allocated) }}</td>
+                        <td class="text-end">{{ "{:,.1f}".format(lot.quantity_issued) }}</td>
+                        <td class="text-end">{{ "{:,.1f}".format(lot.quantity_available) }}</td>
+                        <td class="text-end {% if not lot.quantity_remaining %}text-danger{% endif %}">{{ "{:,.1f}".format(lot.quantity_remaining) }}</td>
+                        <td class="text-nowrap">
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse"
+                                    data-bs-target="#mv{{ lot.id }}" title="Post movement"><i class="bi bi-arrow-left-right"></i></button>
+                            <a href="{{ url_for('orders.edit_lot', id=lot.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
+                            <form method="POST" class="d-inline" action="{{ url_for('orders.delete_lot', id=lot.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-outline-danger" data-confirm="Delete this lot?"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="mv{{ lot.id }}">
+                        <td colspan="10" class="bg-light">
+                            <form method="POST" action="{{ url_for('orders.add_movement', id=lot.id) }}" class="row g-2 align-items-end">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="col-md-2">
+                                    <label class="form-label small">Movement</label>
+                                    <select name="movement_type" class="form-select form-select-sm">
+                                        <option value="allocation">Allocate</option>
+                                        <option value="issue">Issue</option>
+                                        <option value="return">Return</option>
+                                        <option value="scrap">Scrap</option>
+                                        <option value="shortage">Shortage</option>
+                                        <option value="adjustment">Adjustment</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Date</label>
+                                    <input type="date" name="movement_date" class="form-control form-control-sm" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Quantity</label>
+                                    <input type="number" step="0.01" name="quantity" class="form-control form-control-sm" min="0.01" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Reference</label>
+                                    <input type="text" name="reference" class="form-control form-control-sm"
+                                           placeholder="Duplicates rejected">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Notes</label>
+                                    <input type="text" name="notes" class="form-control form-control-sm">
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="submit" class="btn btn-sm btn-primary w-100">Post</button>
+                                </div>
+                            </form>
+                            {% if lot.movements.count() %}
+                            <div class="small text-muted mt-2">
+                                {% for mv in lot.movements.order_by('movement_date').all() %}
+                                <span class="badge bg-secondary">{{ mv.movement_date }} {{ mv.movement_type }} {{ mv.quantity }}{% if mv.reference %} ({{ mv.reference }}){% endif %}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="10" class="text-center text-muted py-4">
+                        No material lots found. <a href="{{ url_for('orders.new_lot') }}">Receive one</a>.
+                    </td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if pagination.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ pagination.items|length }} of {{ pagination.total }} lots</small>
+        <nav><ul class="pagination mb-0">
+            {% if pagination.has_prev %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('orders.materials', page=pagination.prev_num, search=search, material_id=material_id, supplier_id=supplier_id, low_stock=low_stock, sort=sort, dir=dir, per_page=per_page) }}">Previous</a></li>
+            {% endif %}
+            {% for p in pagination.iter_pages() %}
+                {% if p %}
+                <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('orders.materials', page=p, search=search, material_id=material_id, supplier_id=supplier_id, low_stock=low_stock, sort=sort, dir=dir, per_page=per_page) }}">{{ p }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            {% if pagination.has_next %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('orders.materials', page=pagination.next_num, search=search, material_id=material_id, supplier_id=supplier_id, low_stock=low_stock, sort=sort, dir=dir, per_page=per_page) }}">Next</a></li>
+            {% endif %}
+        </ul></nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

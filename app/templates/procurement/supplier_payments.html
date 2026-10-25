@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Supplier Payments - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Purchasing</li>
+<li class="breadcrumb-item active">Supplier Payments</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Supplier Payments</h1>
+        <p class="page-subtitle">Payments made, with allocated and advance (unallocated) amounts</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('procurement.export_supplier_payments') }}"
+           class="btn btn-outline-primary">
+            <i class="bi bi-download"></i> Export
+        </a>
+    </div>
+</div>
+
+{% set total_paid = payments.items|sum(attribute='amount') %}
+{% set total_adv = payments.items|sum(attribute='unallocated_amount') %}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Payments</div>
+        <div class="h4 mb-0">{{ payments.total }}</div>
+    </div></div></div>
+    <div class="col-6 col-md-4"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Total Paid (this page)</div>
+        <div class="h4 mb-0">{{ "{:,.0f}".format(total_paid) }}</div>
+    </div></div></div>
+    <div class="col-6 col-md-4"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Advances / Credits (this page)</div>
+        <div class="h4 mb-0 {% if total_adv %}text-warning{% endif %}">{{ "{:,.0f}".format(total_adv) }}</div>
+        <div class="small text-muted">unallocated balance</div>
+    </div></div></div>
+</div>
+
+{% set sort_qs = {'dir': 'asc' if dir == 'desc' else 'desc', 'per_page': per_page} %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr>
+                    <th><a href="{{ url_for('procurement.supplier_payments', sort='number', **sort_qs) }}">Payment</a></th>
+                    <th><a href="{{ url_for('procurement.supplier_payments', sort='supplier', **sort_qs) }}">Supplier</a></th>
+                    <th><a href="{{ url_for('procurement.supplier_payments', sort='date', **sort_qs) }}">Date</a></th>
+                    <th><a href="{{ url_for('procurement.supplier_payments', sort='method', **sort_qs) }}">Method</a></th>
+                    <th class="text-end"><a href="{{ url_for('procurement.supplier_payments', sort='amount', **sort_qs) }}">Amount</a></th>
+                    <th class="text-end">Allocated</th>
+                    <th class="text-end">Unallocated</th><th></th>
+                </tr></thead>
+                <tbody>
+                {% for p in payments.items %}
+                    <tr>
+                        <td><strong>{{ p.payment_number }}</strong>{% if p.is_advance %} <span class="badge bg-warning-subtle text-warning-emphasis">Advance</span>{% endif %}</td>
+                        <td>{% if p.supplier %}<a href="{{ url_for('supplier.view', id=p.supplier.id) }}">{{ p.supplier.company_name }}</a>{% else %}-{% endif %}</td>
+                        <td>{{ p.payment_date }}</td>
+                        <td>{{ p.method or '-' }}</td>
+                        <td class="text-end">{{ "{:,.0f}".format(p.amount or 0) }}</td>
+                        <td class="text-end">{{ "{:,.0f}".format(p.allocated_amount) }}</td>
+                        <td class="text-end {% if p.unallocated_amount %}text-warning{% endif %}">{{ "{:,.0f}".format(p.unallocated_amount) }}</td>
+                        <td class="text-end">
+                            {% if p.supplier %}
+                            <a href="{{ url_for('supplier.view', id=p.supplier.id) }}" class="btn btn-sm btn-outline-primary" title="Allocate on profile"><i class="bi bi-link-45deg"></i></a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">
+                        No supplier payments recorded. Add one from a supplier's profile.
+                    </td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if payments.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ payments.items|length }} of {{ payments.total }} payments</small>
+        <nav aria-label="Page navigation">
+            <ul class="pagination mb-0">
+                {% if payments.has_prev %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('procurement.supplier_payments', page=payments.prev_num, sort=sort, dir=dir, per_page=per_page) }}">Previous</a></li>
+                {% endif %}
+                {% for p in payments.iter_pages() %}
+                    {% if p %}
+                    <li class="page-item {% if p == payments.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('procurement.supplier_payments', page=p, sort=sort, dir=dir, per_page=per_page) }}">{{ p }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                {% if payments.has_next %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('procurement.supplier_payments', page=payments.next_num, sort=sort, dir=dir, per_page=per_page) }}">Next</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -101,7 +101,7 @@ def edit_allowance(id):
     return render_template('setting/allowance_form.html', form=form)
 
 
-@setting_bp.route('/general')
+@setting_bp.route('/general', methods=['GET', 'POST'])
 @login_required
 def general():
     """General settings."""
@@ -113,6 +113,11 @@ def general():
         ]
         
         for key in settings_to_update:
+            # Only touch keys the form actually submitted; otherwise a
+            # field missing from the page would overwrite a stored value
+            # with None.
+            if key.lower() not in request.form:
+                continue
             value = request.form.get(key.lower())
             setting = SystemSetting.query.filter_by(setting_key=key).first()
             
@@ -128,5 +133,9 @@ def general():
     
     # Load current settings
     settings = {s.setting_key: s.setting_value for s in SystemSetting.query.all()}
+    currencies = [c.currency_code for c in
+                  Currency.query.filter_by(is_active=True)
+                  .order_by(Currency.currency_code).all()]
     
-    return render_template('setting/general.html', settings=settings)
+    return render_template('setting/general.html', settings=settings,
+                           currencies=currencies)
