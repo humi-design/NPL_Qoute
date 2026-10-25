@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}{{ rfq.rfq_number }} - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Purchasing</li>
+<li class="breadcrumb-item"><a href="{{ url_for('procurement.supplier_rfqs') }}">Supplier RFQs</a></li>
+<li class="breadcrumb-item active">{{ rfq.rfq_number }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ rfq.rfq_number }}</h1>
+        <p class="page-subtitle">{{ rfq.title or '' }}
+            {% if rfq.material %} · {{ rfq.material.material_name }}{% endif %}
+            {% if rfq.grade %} · {{ rfq.grade }}{% endif %}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('procurement.edit_supplier_rfq', id=rfq.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-pencil"></i> Edit</a>
+        {% if comparison %}
+        <a href="{{ url_for('procurement.compare_rfq_quotes', id=rfq.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-bar-chart"></i> Compare Quotes</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small">Status</div>
+        <h5 class="mb-0">{{ rfq.status }}</h5></div></div></div>
+    <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small">Quantity</div>
+        <h5 class="mb-0">{{ "{:,.1f}".format(rfq.quantity) }} {{ rfq.unit }}</h5></div></div></div>
+    <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small">RFQ Date</div>
+        <h5 class="mb-0">{{ rfq.rfq_date or '—' }}</h5></div></div></div>
+    <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small">Quote Due</div>
+        <h5 class="mb-0">{{ rfq.due_date or '—' }}</h5></div></div></div>
+    <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small">Required</div>
+        <h5 class="mb-0">{{ rfq.required_date or '—' }}</h5></div></div></div>
+    <div class="col-6 col-md-2"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small">Quotes</div>
+        <h5 class="mb-0">{{ rfq.quotes.count() }}</h5></div></div></div>
+</div>
+
+{% if rfq.is_awarded %}
+<div class="alert alert-success border d-flex justify-content-between align-items-center">
+    <div>
+        <i class="bi bi-award me-1"></i>
+        Awarded to <strong>{{ rfq.awarded_quote.supplier.company_name if rfq.awarded_quote and rfq.awarded_quote.supplier else 'supplier' }}</strong>
+        {% if rfq.awarded_at %} on {{ rfq.awarded_at.strftime('%Y-%m-%d') }}{% endif %}.
+    </div>
+    <div>
+        {% if rfq.po_id %}
+        <a href="{{ url_for('procurement.view_purchase_order', id=rfq.po_id) }}" class="btn btn-sm btn-outline-primary">View Purchase Order</a>
+        {% else %}
+        <form method="POST" action="{{ url_for('procurement.create_po_from_rfq', id=rfq.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-primary">Raise Purchase Order</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+    <div class="card-header">Record a supplier quote</div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('procurement.add_supplier_quote', id=rfq.id) }}" class="row g-2 align-items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-md-3">
+                <label class="form-label small">Supplier</label>
+                <select name="supplier_id" class="form-select" required>
+                    <option value="">Select Supplier</option>
+                    {% for s in suppliers %}
+                    <option value="{{ s.id }}">{{ s.company_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Quote Ref</label>
+                <input type="text" name="quote_reference" class="form-control">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Quote Date</label>
+                <input type="date" name="quote_date" class="form-control" value="{{ today }}" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Unit Price</label>
+                <input type="number" step="0.0001" name="unit_price" class="form-control" required>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label small">Tax %</label>
+                <input type="number" step="0.01" name="tax_percent" class="form-control" value="0">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Lead (days)</label>
+                <input type="number" name="lead_time_days" class="form-control">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Currency</label>
+                <input type="text" name="currency" class="form-control" value="{{ rfq.currency }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Payment Terms</label>
+                <input type="text" name="payment_terms" class="form-control" value="{{ rfq.payment_terms or '' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Delivery Terms</label>
+                <input type="text" name="delivery_terms" class="form-control" value="{{ rfq.delivery_terms or '' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Quality (0-100)</label>
+                <input type="number" step="0.1" name="quality_rating" class="form-control">
+            </div>
+            <div class="col-md-1">
+                <button class="btn btn-primary w-100">Add</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Quotes received</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light"><tr>
+                <th>Supplier</th><th>Ref</th><th>Date</th>
+                <th class="text-end">Unit Price</th><th>Currency</th>
+                <th class="text-end">Landed</th><th class="text-end">Lead</th>
+                <th>Payment</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+            <tbody>
+                {% for q in rfq.quotes.all() %}
+                <tr class="{% if rfq.awarded_quote_id == q.id %}table-success{% endif %}">
+                    <td>{{ q.supplier.company_name if q.supplier else '—' }}</td>
+                    <td class="small">{{ q.quote_reference or '—' }}</td>
+                    <td class="small">{{ q.quote_date }}</td>
+                    <td class="text-end">{{ "{:,.4f}".format(q.unit_price) }}</td>
+                    <td class="small text-muted">{{ q.currency }}</td>
+                    <td class="text-end">{{ "{:,.4f}".format(q.landed_price) }}</td>
+                    <td class="text-end">{{ q.lead_time_days if q.lead_time_days is not none else '—' }}</td>
+                    <td class="small">{{ q.payment_terms or '—' }}</td>
+                    <td><span class="badge bg-secondary">{{ q.status }}</span></td>
+                    <td class="text-end">
+                        {% if current_user.has_permission('admin') and not rfq.is_awarded %}
+                        <form method="POST" action="{{ url_for('procurement.award_supplier_quote', id=rfq.id, quote_id=q.id) }}"
+                              class="d-inline" onsubmit="return confirm('Approve (award) this quote?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-outline-success">Approve</button>
+                        </form>
+                        {% endif %}
+                        {% if not rfq.is_awarded or rfq.awarded_quote_id != q.id %}
+                        <form method="POST" action="{{ url_for('procurement.delete_supplier_quote', id=q.id) }}"
+                              class="d-inline" onsubmit="return confirm('Delete this quote?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="10" class="text-center text-muted py-4">No quotes recorded yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

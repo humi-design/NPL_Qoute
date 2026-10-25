@@ -3,7 +3,7 @@ from flask_login import login_required
 from app.machine import machine_bp
 from app.models import db, Machine
 from app.forms import MachineForm
-from app.utils import generate_machine_code
+from app.utils import generate_machine_code, referential_delete_block
 
 
 @machine_bp.route('/')
@@ -84,6 +84,14 @@ def edit(id):
 def delete(id):
     """Delete machine."""
     machine = Machine.query.get_or_404(id)
+
+    # Refuse while processes / quotation operations / order operations still
+    # reference the machine.
+    block = referential_delete_block(machine)
+    if block:
+        flash(block, 'danger')
+        return redirect(url_for('machine.view', id=id))
+
     db.session.delete(machine)
     db.session.commit()
     flash('Machine deleted.', 'success')

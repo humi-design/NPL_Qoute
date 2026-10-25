@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Vendor Work Orders - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('vendor.index') }}">Vendors</a></li>
+<li class="breadcrumb-item active">Work Orders</li>
+{% endblock %}
+
+{% macro sort_link(key, label) %}
+  {% set new_dir = 'desc' if (sort == key and dir == 'asc') else 'asc' %}
+  <a href="{{ url_for('vendor.work_orders', search=search, status=status, work=work_view, vendor_id=vendor_id, overdue=overdue, sort=key, dir=new_dir, per_page=per_page) }}"
+     class="text-decoration-none text-dark">
+    {{ label }}
+    {% if sort == key %}<i class="bi bi-caret-{{ 'up' if dir == 'asc' else 'down' }}-fill"></i>
+    {% else %}<i class="bi bi-arrow-down-up text-muted small"></i>{% endif %}
+  </a>
+{% endmacro %}
+
+{% macro status_badge(status) %}
+  {% if status == 'completed' %}<span class="badge-status badge-won">Completed</span>
+  {% elif status == 'cancelled' %}<span class="badge-status badge-inactive">Cancelled</span>
+  {% elif status == 'in_progress' %}<span class="badge-status badge-sent">In Progress</span>
+  {% else %}<span class="badge-status badge-pending">Pending</span>{% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Vendor Work Orders</h1>
+        <p class="page-subtitle">All outsourced work across vendors</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('vendor.export_work_orders', work=work_view, vendor_id=vendor_id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-download"></i> Export
+        </a>
+        <a href="{{ url_for('vendor.new_work_order') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Work Order
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <ul class="nav nav-pills">
+                {% for key, label in [('current', 'Current'), ('past', 'Past'), ('all', 'All')] %}
+                <li class="nav-item">
+                    <a class="nav-link {% if work_view == key %}active{% endif %}"
+                       href="{{ url_for('vendor.work_orders', work=key, status=status, vendor_id=vendor_id, search=search, overdue=overdue, sort=sort, dir=dir, per_page=per_page) }}">
+                        {{ label }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <form method="GET" class="row g-3">
+            <input type="hidden" name="work" value="{{ work_view }}">
+            <div class="col-md-3">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="search"
+                           placeholder="Search WO, part, vendor..." value="{{ search }}">
+                    <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select name="vendor_id" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Vendors</option>
+                    {% for v in vendors %}
+                    <option value="{{ v.id }}" {% if vendor_id == v.id %}selected{% endif %}>{{ v.vendor_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Status</option>
+                    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="in_progress" {% if status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="overdue" class="form-select" onchange="this.form.submit()">
+                    <option value="">Any Due Date</option>
+                    <option value="1" {% if overdue == '1' %}selected{% endif %}>Overdue Only</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="per_page" class="form-select" onchange="this.form.submit()">
+                    {% for n in [10, 25, 50, 100] %}
+                    <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }} / page</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ sort_link('number', 'Work Order') }}</th>
+                        <th>Vendor</th>
+                        <th>Service / Part</th>
+                        <th class="text-end">{{ sort_link('ordered', 'Ordered') }}</th>
+                        <th class="text-end">{{ sort_link('received', 'Received') }}</th>
+                        <th class="text-end">Pending</th>
+                        <th>{{ sort_link('due_date', 'Due') }}</th>
+                        <th>{{ sort_link('status', 'Status') }}</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for w in work_orders.items %}
+                    <tr class="{% if w.is_overdue %}table-danger{% endif %}">
+                        <td><strong>{{ w.work_order_number }}</strong></td>
+                        <td><a href="{{ url_for('vendor.view', id=w.vendor_id) }}">{{ w.vendor.vendor_name if w.vendor else '-' }}</a></td>
+                        <td>
+                            <div>{{ w.service_name or w.title or '-' }}</div>
+                            <small class="text-muted">{% if w.process %}{{ w.process.process_name }}{% endif %}{% if w.drawing_number %} · {{ w.drawing_number }}{% endif %}</small>
+                        </td>
+                        <td class="text-end">{{ w.quantity_ordered }} {{ w.unit }}</td>
+                        <td class="text-end">{{ w.quantity_received }}</td>
+                        <td class="text-end">{{ w.pending_quantity }}</td>
+                        <td>
+                            {{ w.due_date or '-' }}
+                            {% if w.is_overdue %}<span class="badge bg-danger">{{ w.days_overdue }}d</span>{% endif %}
+                        </td>
+                        <td>{{ status_badge(w.status) }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('vendor.edit_work_order', id=w.id) }}" class="btn btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
+                                <form method="POST" action="{{ url_for('vendor.delete_work_order', id=w.id) }}"
+                                      onsubmit="return confirm('Delete work order {{ w.work_order_number }}?');" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="9" class="text-center text-muted py-4">
+                        No {{ work_view }} work orders found.
+                        <a href="{{ url_for('vendor.new_work_order') }}">Create one</a>.
+                    </td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if work_orders.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ work_orders.items|length }} of {{ work_orders.total }}</small>
+        <nav>
+            <ul class="pagination mb-0">
+                {% if work_orders.has_prev %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('vendor.work_orders', page=work_orders.prev_num, search=search, status=status, work=work_view, vendor_id=vendor_id, overdue=overdue, sort=sort, dir=dir, per_page=per_page) }}">Previous</a></li>
+                {% endif %}
+                {% for p in work_orders.iter_pages() %}
+                    {% if p %}
+                    <li class="page-item {% if p == work_orders.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('vendor.work_orders', page=p, search=search, status=status, work=work_view, vendor_id=vendor_id, overdue=overdue, sort=sort, dir=dir, per_page=per_page) }}">{{ p }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                {% if work_orders.has_next %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('vendor.work_orders', page=work_orders.next_num, search=search, status=status, work=work_view, vendor_id=vendor_id, overdue=overdue, sort=sort, dir=dir, per_page=per_page) }}">Next</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Orders - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Live Operations</li>
+<li class="breadcrumb-item active">Orders</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Orders</h1>
+        <p class="page-subtitle">Current, past and all customer orders with production status</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('orders.export_orders', view=view, customer_id=customer_id) }}"
+           class="btn btn-outline-primary"><i class="bi bi-download"></i> Export</a>
+        <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Order
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    {% for s in open_statuses %}
+    <div class="col-6 col-md-3">
+        <div class="card">
+            <div class="card-body py-2">
+                <div class="text-muted small">{{ s.replace('_',' ')|title }}</div>
+                <h4 class="mb-0">{{ status_summary.get(s, 0) }}</h4>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    <div class="col-6 col-md-3">
+        <div class="card">
+            <div class="card-body py-2">
+                <div class="text-muted small">Completed</div>
+                <h4 class="mb-0">{{ status_summary.get('completed', 0) }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <ul class="nav nav-pills mb-3">
+            {% for key, label in [('current', 'Current'), ('past', 'Past'), ('all', 'All')] %}
+            <li class="nav-item">
+                <a class="nav-link {% if view == key %}active{% endif %}"
+                   href="{{ url_for('orders.index', view=key, search=search, status=status, customer_id=customer_id, overdue=overdue, sort=sort, dir=dir, per_page=per_page) }}">{{ label }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+        <form method="GET" class="row g-2 align-items-end">
+            <input type="hidden" name="view" value="{{ view }}">
+            <div class="col-md-4">
+                <label class="form-label small">Search</label>
+                <input type="text" class="form-control" name="search"
+                       placeholder="Order no, part, drawing, customer..." value="{{ search }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Customer</label>
+                <select name="customer_id" class="form-select">
+                    <option value="">All</option>
+                    {% for c in customers %}
+                    <option value="{{ c.id }}" {% if customer_id == c.id %}selected{% endif %}>{{ c.company_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All</option>
+                    {% for s in ['draft','confirmed','in_production','completed','on_hold','cancelled'] %}
+                    <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s.replace('_',' ')|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Due</label>
+                <select name="overdue" class="form-select">
+                    <option value="">Any</option>
+                    <option value="1" {% if overdue == '1' %}selected{% endif %}>Overdue only</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% set sort_qs = {'view': view, 'search': search, 'status': status, 'customer_id': customer_id, 'overdue': overdue, 'dir': 'asc' if dir == 'desc' else 'desc', 'per_page': per_page} %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th><a href="{{ url_for('orders.index', sort='number', **sort_qs) }}">Order</a></th>
+                        <th><a href="{{ url_for('orders.index', sort='customer', **sort_qs) }}">Customer</a></th>
+                        <th>Part / Drawing</th>
+                        <th class="text-end"><a href="{{ url_for('orders.index', sort='qty', **sort_qs) }}">Qty</a></th>
+                        <th class="text-end">Produced</th>
+                        <th class="text-end">Pending</th>
+                        <th><a href="{{ url_for('orders.index', sort='due_date', **sort_qs) }}">Due</a></th>
+                        <th><a href="{{ url_for('orders.index', sort='status', **sort_qs) }}">Status</a></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for o in orders.items %}
+                    <tr class="{% if o.is_overdue %}table-danger{% endif %}"
+                        onclick="window.location='{{ url_for('orders.view_order', id=o.id) }}'" style="cursor:pointer;">
+                        <td><strong>{{ o.order_number }}</strong>
+                            {% if o.priority in ('high','urgent') %}<span class="badge-status badge-pending">{{ o.priority|title }}</span>{% endif %}
+                        </td>
+                        <td>{{ o.customer.company_name if o.customer else '-' }}</td>
+                        <td>
+                            {{ o.part_description or '-' }}
+                            <div class="text-muted small">
+                                {% if o.drawing_number %}Drg {{ o.drawing_number }}{% endif %}
+                                {% if o.revision %} Rev {{ o.revision }}{% endif %}
+                            </div>
+                        </td>
+                        <td class="text-end">{{ o.quantity_ordered }}</td>
+                        <td class="text-end">{{ o.quantity_produced }}</td>
+                        <td class="text-end {% if o.pending_quantity %}text-danger{% endif %}">{{ o.pending_quantity }}</td>
+                        <td>{{ o.due_date or '-' }}{% if o.is_overdue %}<div class="text-danger small">{{ o.days_overdue }}d overdue</div>{% endif %}</td>
+                        <td>
+                            {% if o.status == 'completed' %}<span class="badge-status badge-won">Completed</span>
+                            {% elif o.status == 'cancelled' %}<span class="badge-status badge-inactive">Cancelled</span>
+                            {% elif o.status == 'in_production' %}<span class="badge-status badge-sent">In Production</span>
+                            {% elif o.status == 'on_hold' %}<span class="badge-status badge-pending">On Hold</span>
+                            {% else %}<span class="badge-status badge-pending">{{ o.status|title }}</span>{% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('orders.view_order', id=o.id) }}" class="btn btn-sm btn-outline-secondary" title="Open"><i class="bi bi-box-arrow-up-right"></i></a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="9" class="text-center text-muted py-4">
+                        No orders found. <a href="{{ url_for('orders.new_order') }}">Create one</a>.
+                    </td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if orders.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ orders.items|length }} of {{ orders.total }} orders</small>
+        <nav aria-label="Page navigation">
+            <ul class="pagination mb-0">
+                {% if orders.has_prev %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('orders.index', page=orders.prev_num, view=view, search=search, status=status, customer_id=customer_id, overdue=overdue, sort=sort, dir=dir, per_page=per_page) }}">Previous</a></li>
+                {% endif %}
+                {% for p in orders.iter_pages() %}
+                    {% if p %}
+                    <li class="page-item {% if p == orders.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('orders.index', page=p, view=view, search=search, status=status, customer_id=customer_id, overdue=overdue, sort=sort, dir=dir, per_page=per_page) }}">{{ p }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                {% if orders.has_next %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('orders.index', page=orders.next_num, view=view, search=search, status=status, customer_id=customer_id, overdue=overdue, sort=sort, dir=dir, per_page=per_page) }}">Next</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

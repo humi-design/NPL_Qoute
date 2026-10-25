@@ -3,7 +3,8 @@ from flask_login import login_required
 from app.process import process_bp
 from app.models import db, Process, ProcessTemplate, ProcessTemplateStep, Machine, Vendor
 from app.forms import ProcessForm, ProcessTemplateForm
-from app.utils import generate_process_code, generate_template_code
+from app.utils import (generate_process_code, generate_template_code,
+                       referential_delete_block)
 
 
 @process_bp.route('/')
@@ -111,6 +112,14 @@ def edit(id):
 def delete(id):
     """Delete process."""
     process = Process.query.get_or_404(id)
+
+    # Refuse while quotations / vendor work orders / order operations still
+    # reference the process.
+    block = referential_delete_block(process)
+    if block:
+        flash(block, 'danger')
+        return redirect(url_for('process.edit', id=id))
+
     db.session.delete(process)
     db.session.commit()
     flash('Process deleted.', 'success')

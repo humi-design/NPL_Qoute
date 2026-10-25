@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Notifications</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Notifications</h1>
+        <p class="page-subtitle">Quotation, rate and workflow notifications addressed to you</p>
+    </div>
+    <div class="page-actions">
+        {% if counts.unread %}
+        <form method="POST" action="{{ url_for('notifications.mark_all_read') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-primary">
+                <i class="bi bi-check2-all"></i> Mark all read</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-4">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">All</div><h4 class="mb-0">{{ counts.all }}</h4>
+        </div></div>
+    </div>
+    <div class="col-4">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">Unread</div>
+            <h4 class="mb-0 {% if counts.unread %}text-danger{% endif %}">{{ counts.unread }}</h4>
+        </div></div>
+    </div>
+    <div class="col-4">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">Read</div><h4 class="mb-0">{{ counts.read }}</h4>
+        </div></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="btn-group btn-group-sm">
+            {% for value, label in [('all', 'All'), ('unread', 'Unread'), ('read', 'Read')] %}
+            <a href="{{ url_for('notifications.index', show=value) }}"
+               class="btn btn-outline-secondary {% if show == value %}active{% endif %}">{{ label }}</a>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for r in rows %}
+        <div class="list-group-item {% if not r.n.is_read %}bg-light{% endif %}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="fw-medium">
+                        {% if r.link %}<a href="{{ r.link }}">{{ r.n.title }}</a>
+                        {% else %}{{ r.n.title }}{% endif %}
+                        {% if not r.n.is_read %}<span class="badge bg-primary ms-1">New</span>{% endif %}
+                    </div>
+                    {% if r.n.message %}<div class="small text-muted">{{ r.n.message }}</div>{% endif %}
+                    <div class="small text-muted">
+                        {{ r.n.notification_type or '' }}
+                        {% if r.n.created_at %}· {{ r.n.created_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+                    </div>
+                </div>
+                <div class="text-nowrap">
+                    {% if not r.n.is_read %}
+                    <form method="POST" action="{{ url_for('notifications.mark_read', id=r.n.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="next" value="{{ request.full_path }}">
+                        <button class="btn btn-sm btn-outline-primary" title="Mark read">
+                            <i class="bi bi-check2"></i></button>
+                    </form>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('notifications.delete', id=r.n.id) }}"
+                          class="d-inline" data-confirm="Delete this notification?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-outline-danger" title="Delete">
+                            <i class="bi bi-trash"></i></button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="list-group-item text-center text-muted py-5">
+            <i class="bi bi-bell-slash" style="font-size:2rem;"></i>
+            <p class="mt-2 mb-0">No notifications to show.</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% if pagination.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">{{ pagination.total }} notification(s)</small>
+        <nav><ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('notifications.index', page=pagination.prev_num, show=show) }}">Prev</a></li>
+            <li class="page-item disabled"><span class="page-link">{{ pagination.page }} / {{ pagination.pages }}</span></li>
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('notifications.index', page=pagination.next_num, show=show) }}">Next</a></li>
+        </ul></nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

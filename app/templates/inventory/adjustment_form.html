@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}New Stock Adjustment - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Inventory</li>
+<li class="breadcrumb-item"><a href="{{ url_for('inventory.adjustments') }}">Adjustments</a></li>
+<li class="breadcrumb-item active">New</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div><h1 class="page-title">New Stock Adjustment</h1></div>
+</div>
+
+<div class="alert alert-light border small">
+    <i class="bi bi-info-circle me-1"></i>
+    A reducing adjustment that would take a lot negative needs an administrator's
+    authorisation. Reversing a movement is done from the lot page, not here.
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" class="row g-3">
+            {{ form.hidden_tag() }}
+            <div class="col-md-3">
+                {{ form.adjustment_date.label(class="form-label") }}
+                {{ form.adjustment_date(class="form-control") }}
+            </div>
+            <div class="col-md-5">
+                {{ form.material_lot_id.label(class="form-label") }}
+                {{ form.material_lot_id(class="form-select") }}
+            </div>
+            <div class="col-md-4">
+                {{ form.adjustment_type.label(class="form-label") }}
+                {{ form.adjustment_type(class="form-select") }}
+            </div>
+            <div class="col-md-3">
+                {{ form.quantity.label(class="form-label") }}
+                {{ form.quantity(class="form-control") }}
+            </div>
+            <div class="col-md-2">
+                {{ form.unit.label(class="form-label") }}
+                {{ form.unit(class="form-control") }}
+            </div>
+            <div class="col-md-4">
+                {{ form.location_id.label(class="form-label") }}
+                {{ form.location_id(class="form-select") }}
+            </div>
+            <div class="col-md-3">
+                {{ form.order_id.label(class="form-label") }}
+                {{ form.order_id(class="form-select") }}
+            </div>
+            <div class="col-md-6">
+                {{ form.reason.label(class="form-label") }}
+                {{ form.reason(class="form-control") }}
+            </div>
+            <div class="col-md-6">
+                {{ form.reference.label(class="form-label") }}
+                {{ form.reference(class="form-control") }}
+            </div>
+            <div class="col-12">
+                {{ form.notes.label(class="form-label") }}
+                {{ form.notes(class="form-control", rows=2) }}
+            </div>
+            <div class="col-12">
+                <button class="btn btn-primary">Record Adjustment</button>
+                <a href="{{ url_for('inventory.adjustments') }}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+# =============================================================================
+# NPL Fasteners ERP - Development / Test Dependencies
+# =============================================================================
+# Install on top of requirements.txt:
+#   pip install -r requirements.txt -r requirements-dev.txt
+# =============================================================================
+
+# Test runner
+pytest>=8.0
+
+# SQL linting helper (optional, used to sanity-check schema.sql / migrate.sql)
+sqlglot>=25.0

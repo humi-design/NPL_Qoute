@@ -2,7 +2,10 @@ from flask import jsonify, request
 from flask_login import login_required, current_user
 from datetime import datetime
 from app.api import api_bp
-from app.models import db, Customer, Product, Quotation, RFQ, Material, Machine, Vendor, Process
+from app.models import (
+    db, Customer, Product, Quotation, RFQ, Material, Machine, Vendor, Process,
+    VendorWorkOrder, Supplier, SupplierType
+)
 
 
 # ============ Customers API ============
@@ -147,10 +150,15 @@ def get_machines():
 @api_bp.route('/vendors', methods=['GET'])
 @login_required
 def get_vendors():
-    """Get all vendors."""
+    """Get all vendors (optionally with work summary)."""
+    from app.utils import compute_vendor_summary
+
+    include_summary = request.args.get('summary', '0') in ('1', 'true', 'yes')
     vendors = Vendor.query.filter_by(is_active=True).all()
-    return jsonify([
-        {
+
+    payload = []
+    for v in vendors:
+        item = {
             'id': v.id,
             'code': v.vendor_code,
             'name': v.vendor_name,
@@ -158,7 +166,250 @@ def get_vendors():
             'email': v.email,
             'lead_time': v.lead_time
         }
-        for v in vendors
+        if include_summary:
+            item['summary'] = compute_vendor_summary(v)
+        payload.append(item)
+
+    return jsonify(payload)
+
+
+@api_bp.route('/vendors/<int:id>', methods=['GET'])
+@login_required
+def get_vendor(id):
+    """Get a single vendor with work summary and recent work orders."""
+    from app.utils import compute_vendor_summary, compute_vendor_financial_summary
+
+    vendor = Vendor.query.get_or_404(id)
+    summary = compute_vendor_summary(vendor)
+    financials = compute_vendor_financial_summary(vendor)
+
+    work_orders = vendor.work_orders.order_by(VendorWorkOrder.id.desc()).limit(50).all()
+
+    return jsonify({
+        'id': vendor.id,
+        'code': vendor.vendor_code,
+        'name': vendor.vendor_name,
+        'contact': vendor.contact_person,
+        'email': vendor.email,
+        'lead_time': vendor.lead_time,
+        'summary': summary,
+        'financials': financials,
+        'work_orders': [
+            {
+                'id': w.id,
+                'number': w.work_order_number,
+                'title': w.title,
+                'service': w.service_name,
+                'status': w.status,
+                'quantity_ordered': w.quantity_ordered,
+                'quantity_received': w.quantity_received,
+                'pending_quantity': w.pending_quantity,
+                'due_date': w.due_date.isoformat() if w.due_date else None,
+                'is_overdue': w.is_overdue,
+            }
+            for w in work_orders
+        ],
+    })
+
+
+@api_bp.route('/vendors/work-orders', methods=['GET'])
+@login_required
+def get_vendor_work_orders():
+    """Get vendor work orders with the Current / Past / All view filter."""
+    view = request.args.get('view', 'all')
+    vendor_id = request.args.get('vendor_id', type=int)
+
+    query = VendorWorkOrder.query
+    if view == 'current':
+        query = query.filter(VendorWorkOrder.status.in_(VendorWorkOrder.OPEN_STATUSES))
+    elif view == 'past':
+        query = query.filter(VendorWorkOrder.status.in_(VendorWorkOrder.COMPLETE_STATUSES))
+
+    if vendor_id:
+        query = query.filter(VendorWorkOrder.vendor_id == vendor_id)
+
+    work_orders = query.order_by(VendorWorkOrder.id.desc()).limit(500).all()
+
+    return jsonify([
+        {
+            'id': w.id,
+            'number': w.work_order_number,
+            'vendor_id': w.vendor_id,
+            'vendor': w.vendor.vendor_name if w.vendor else None,
+            'title': w.title,
+            'service': w.service_name,
+            'status': w.status,
+            'quantity_ordered': w.quantity_ordered,
+            'quantity_received': w.quantity_received,
+            'pending_quantity': w.pending_quantity,
+            'order_date': w.order_date.isoformat() if w.order_date else None,
+            'due_date': w.due_date.isoformat() if w.due_date else None,
+            'is_overdue': w.is_overdue,
+        }
+        for w in work_orders
+    ])
+
+
+# ============ Suppliers API ============
+
+@api_bp.route('/suppliers', methods=['GET'])
+@login_required
+def get_suppliers():
+    """Get all suppliers (optionally with material summary)."""
+    from app.utils import compute_supplier_summary
+
+    include_summary = request.args.get('summary', '0') in ('1', 'true', 'yes')
+    type_id = request.args.get('type', type=int)
+    status = request.args.get('status', '')
+
+    query = Supplier.query
+    if status == 'active':
+        query = query.filter(Supplier.is_active.is_(True))
+    elif status == 'inactive':
+        query = query.filter(Supplier.is_active.is_(False))
+    else:
+        query = query.filter(Supplier.is_active.is_(True))
+
+    if type_id:
+        query = query.filter(Supplier.supplier_type_id == type_id)
+
+    suppliers = query.order_by(Supplier.company_name).all()
+
+    payload = []
+    for s in suppliers:
+        item = {
+            'id': s.id,
+            'code': s.supplier_code,
+            'name': s.company_name,
+            'type': s.supplier_type.type_name if s.supplier_type else None,
+            'contact': s.contact_person,
+            'email': s.email,
+            'phone': s.phone,
+            'city': s.city,
+            'gst_vat': s.gst_vat,
+            'currency': s.default_currency,
+            'lead_time': s.lead_time,
+            'payment_terms': s.payment_terms,
+        }
+        if include_summary:
+            item['summary'] = compute_supplier_summary(s)
+        payload.append(item)
+
+    return jsonify(payload)
+
+
+@api_bp.route('/suppliers/<int:id>', methods=['GET'])
+@login_required
+def get_supplier(id):
+    """Get a single supplier with supplied materials, procurement and summary."""
+    from app.utils import (compute_supplier_summary,
+                           compute_supplier_procurement_summary)
+    from app.models import (SupplierPurchaseOrder, SupplierOrderReceipt,
+                            SupplierOrderReceiptLine, SupplierInvoice)
+
+    supplier = Supplier.query.get_or_404(id)
+    links = supplier.supplied_materials.all()
+
+    pos = SupplierPurchaseOrder.query.filter_by(supplier_id=id).order_by(
+        SupplierPurchaseOrder.id.desc()).all()
+    batch_lines = (SupplierOrderReceiptLine.query
+                   .join(SupplierOrderReceipt)
+                   .filter(SupplierOrderReceipt.supplier_id == id).all())
+    invoices = SupplierInvoice.query.filter_by(supplier_id=id).all()
+
+    return jsonify({
+        'id': supplier.id,
+        'code': supplier.supplier_code,
+        'name': supplier.company_name,
+        'type': supplier.supplier_type.type_name if supplier.supplier_type else None,
+        'contact': supplier.contact_person,
+        'email': supplier.email,
+        'phone': supplier.phone,
+        'mobile': supplier.mobile,
+        'address': supplier.full_address,
+        'gst_vat': supplier.gst_vat,
+        'pan': supplier.pan,
+        'currency': supplier.default_currency,
+        'payment_terms': supplier.payment_terms,
+        'lead_time': supplier.lead_time,
+        'is_active': supplier.is_active,
+        'summary': compute_supplier_summary(supplier),
+        'procurement': compute_supplier_procurement_summary(supplier),
+        'purchase_orders': [
+            {
+                'id': po.id,
+                'number': po.po_number,
+                'order_date': po.order_date.isoformat() if po.order_date else None,
+                'expected_date': po.expected_date.isoformat() if po.expected_date else None,
+                'status': po.status,
+                'ordered_quantity': po.ordered_quantity,
+                'received_quantity': po.received_quantity,
+                'accepted_quantity': po.accepted_quantity,
+                'rejected_quantity': po.rejected_quantity,
+                'pending_quantity': po.pending_quantity,
+                'value': po.total_value,
+                'is_overdue': po.is_overdue,
+                'days_overdue': po.days_overdue,
+            }
+            for po in pos
+        ],
+        'batches': [
+            {
+                'id': b.id,
+                'material_id': b.material_id,
+                'material': b.material.material_name if b.material else None,
+                'batch_number': b.batch_number,
+                'heat_number': b.heat_number,
+                'lot_number': b.lot_number,
+                'certificate_ref': b.certificate_ref,
+                'quantity_received': b.quantity_received,
+                'quantity_rejected': b.quantity_rejected,
+                'inspection_status': b.inspection_status,
+            }
+            for b in batch_lines
+        ],
+        'invoices': [
+            {
+                'id': i.id,
+                'number': i.invoice_number,
+                'invoice_date': i.invoice_date.isoformat() if i.invoice_date else None,
+                'due_date': i.due_date.isoformat() if i.due_date else None,
+                'total_amount': i.total_amount,
+                'paid_amount': i.paid_amount,
+                'outstanding_amount': i.outstanding_amount,
+                'ageing_bucket': i.ageing_bucket,
+                'status': i.status,
+            }
+            for i in invoices
+        ],
+        'supplied_materials': [
+            {
+                'id': link.id,
+                'material_id': link.material_id,
+                'material': link.material.material_name if link.material else None,
+                'material_code': link.material.material_code if link.material else None,
+                'grade': link.grade,
+                'rate': link.rate,
+                'rate_unit': link.rate_unit,
+                'lead_time': link.lead_time,
+                'is_preferred': link.is_preferred,
+            }
+            for link in links
+        ],
+    })
+
+
+@api_bp.route('/supplier-types', methods=['GET'])
+@login_required
+def get_supplier_types():
+    """Get all active supplier types (for dropdowns/integrations)."""
+    types = SupplierType.query.filter_by(is_active=True).order_by(
+        SupplierType.sort_order, SupplierType.type_name).all()
+
+    return jsonify([
+        {'id': t.id, 'code': t.type_code, 'name': t.type_name,
+         'supplier_count': t.suppliers.count()}
+        for t in types
     ])
 
 

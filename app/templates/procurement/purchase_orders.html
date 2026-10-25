@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Orders - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Purchasing</li>
+<li class="breadcrumb-item active">Purchase Orders</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Purchase Orders</h1>
+        <p class="page-subtitle">Orders raised on suppliers, with receipt progress</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('procurement.export_purchase_orders', search=search, status=status) }}"
+           class="btn btn-outline-primary">
+            <i class="bi bi-download"></i> Export
+        </a>
+        <a href="{{ url_for('procurement.new_purchase_order') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Purchase Order
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label small">Search</label>
+                <input type="text" class="form-control" name="search"
+                       placeholder="PO number or supplier..." value="{{ search }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All</option>
+                    {% for s in ['draft','sent','partially_received','received','cancelled','closed'] %}
+                    <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s.replace('_',' ')|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% set sort_qs = {'search': search, 'status': status, 'dir': 'asc' if dir == 'desc' else 'desc', 'per_page': per_page} %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th><a href="{{ url_for('procurement.purchase_orders', sort='number', **sort_qs) }}">PO Number</a></th>
+                        <th><a href="{{ url_for('procurement.purchase_orders', sort='supplier', **sort_qs) }}">Supplier</a></th>
+                        <th><a href="{{ url_for('procurement.purchase_orders', sort='ordered', **sort_qs) }}">Ordered</a></th>
+                        <th><a href="{{ url_for('procurement.purchase_orders', sort='expected', **sort_qs) }}">Expected</a></th>
+                        <th class="text-end">Ordered Qty</th>
+                        <th class="text-end">Received</th>
+                        <th class="text-end">Pending</th>
+                        <th class="text-end">Value</th>
+                        <th><a href="{{ url_for('procurement.purchase_orders', sort='status', **sort_qs) }}">Status</a></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for po in pos.items %}
+                    <tr class="{% if po.is_overdue %}table-danger{% endif %}"
+                        style="cursor:pointer;"
+                        onclick="window.location='{{ url_for('procurement.view_purchase_order', id=po.id) }}'">
+                        <td><strong>{{ po.po_number }}</strong></td>
+                        <td>{{ po.supplier.company_name if po.supplier else '-' }}</td>
+                        <td>{{ po.order_date or '-' }}</td>
+                        <td>
+                            {{ po.expected_date or '-' }}
+                            {% if po.is_overdue %}<span class="badge bg-danger">{{ po.days_overdue }}d late</span>{% endif %}
+                        </td>
+                        <td class="text-end">{{ po.ordered_quantity }}</td>
+                        <td class="text-end">{{ po.received_quantity }}</td>
+                        <td class="text-end">{{ po.pending_quantity }}</td>
+                        <td class="text-end">{{ "{:,.0f}".format(po.total_value) }}</td>
+                        <td>
+                            {% if po.status == 'received' %}<span class="badge-status badge-won">Received</span>
+                            {% elif po.status == 'cancelled' %}<span class="badge-status badge-inactive">Cancelled</span>
+                            {% elif po.status == 'partially_received' %}<span class="badge-status badge-sent">Partial</span>
+                            {% elif po.status == 'closed' %}<span class="badge-status badge-inactive">Closed</span>
+                            {% else %}<span class="badge-status badge-pending">{{ po.status|title }}</span>{% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="9" class="text-center text-muted py-4">
+                        No purchase orders found.
+                        <a href="{{ url_for('procurement.new_purchase_order') }}">Create one</a>.
+                    </td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if pos.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ pos.items|length }} of {{ pos.total }} purchase orders</small>
+        <nav aria-label="Page navigation">
+            <ul class="pagination mb-0">
+                {% if pos.has_prev %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('procurement.purchase_orders', page=pos.prev_num, search=search, status=status, sort=sort, dir=dir, per_page=per_page) }}">Previous</a></li>
+                {% endif %}
+                {% for p in pos.iter_pages() %}
+                    {% if p %}
+                    <li class="page-item {% if p == pos.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('procurement.purchase_orders', page=p, search=search, status=status, sort=sort, dir=dir, per_page=per_page) }}">{{ p }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                {% if pos.has_next %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('procurement.purchase_orders', page=pos.next_num, search=search, status=status, sort=sort, dir=dir, per_page=per_page) }}">Next</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-header"><div><h1 class="page-title">Quotation Report</h1></div><div class="page-actions"><a href="{{ url_for('report.export', type='quotations') }}" class="btn btn-outline-primary"><i class="bi bi-download"></i> Export</a></div></div>
+<div class="page-header"><div><h1 class="page-title">Quotation Report</h1></div><div class="page-actions"><a href="{{ url_for('report.export_report', type='quotations') }}" class="btn btn-outline-primary"><i class="bi bi-download"></i> Export</a></div></div>
 <div class="row mb-4">
 <div class="col-md-3"><div class="stat-card"><div class="stat-info"><h4>{{ total_count }}</h4><p>Total Quotations</p></div></div></div>
 <div class="col-md-3"><div class="stat-card"><div class="stat-info"><h4 class="text-success">{{ won_count }}</h4><p>Won</p></div></div></div>

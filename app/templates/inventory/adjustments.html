@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Adjustments - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Inventory</li>
+<li class="breadcrumb-item active">Adjustments</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Stock Adjustments</h1>
+        <p class="page-subtitle">Authorised corrections, write-offs and reversals — history is never edited</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('inventory.new_adjustment') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Adjustment</a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small">Type</label>
+                <select name="type" class="form-select">
+                    <option value="">All</option>
+                    {% for t in types %}
+                    <option value="{{ t }}" {% if adj_type == t %}selected{% endif %}>{{ t.replace('_', ' ')|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2"><button class="btn btn-outline-secondary w-100">Filter</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light"><tr>
+                <th>Number</th><th>Date</th><th>Lot</th><th>Type</th>
+                <th class="text-end">Qty</th><th>Unit</th><th>Reason</th>
+                <th>Reverses</th><th>Authorised</th><th class="text-end">Actions</th></tr></thead>
+            <tbody>
+                {% for a in pagination.items %}
+                <tr>
+                    <td class="fw-semibold">{{ a.adjustment_number }}</td>
+                    <td class="small">{{ a.adjustment_date }}</td>
+                    <td class="small">
+                        {% if a.lot %}<a href="{{ url_for('inventory.lot_detail', id=a.lot.id) }}">{{ a.lot.lot_number }}</a>{% else %}—{% endif %}
+                    </td>
+                    <td><span class="badge bg-secondary">{{ a.adjustment_type.replace('_', ' ') }}</span></td>
+                    <td class="text-end">{{ "{:,.1f}".format(a.quantity) }}</td>
+                    <td class="small text-muted">{{ a.unit }}</td>
+                    <td class="small text-muted">{{ a.reason or '—' }}</td>
+                    <td class="small text-muted">
+                        {% if a.reverses_movement_id %}Movement #{{ a.reverses_movement_id }}{% elif a.reverses_transfer_id %}Transfer #{{ a.reverses_transfer_id }}{% else %}—{% endif %}
+                    </td>
+                    <td class="small">
+                        {% if a.authorized_by %}<span class="badge bg-warning text-dark">Authorised</span>{% else %}—{% endif %}
+                    </td>
+                    <td class="text-end">
+                        <form method="POST" action="{{ url_for('inventory.delete_adjustment', id=a.id) }}"
+                              class="d-inline" onsubmit="return confirm('Delete this adjustment?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="10" class="text-center text-muted py-4">No adjustments yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

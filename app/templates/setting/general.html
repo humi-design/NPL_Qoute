@@ -2,6 +2,7 @@
 {% block content %}
 <div class="page-header"><div><h1 class="page-title">General Settings</h1></div></div>
 <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <div class="card mb-4"><div class="card-header"><span>Company Information</span></div><div class="card-body">
 <div class="row mb-3">
 <div class="col-md-6"><label class="form-label">Company Name</label><input type="text" name="company_name" class="form-control" value="{{ settings.get('COMPANY_NAME', '') }}"></div>
@@ -11,7 +12,15 @@
 <div class="col-md-6"><label class="form-label">Phone</label><input type="text" name="company_phone" class="form-control" value="{{ settings.get('COMPANY_PHONE', '') }}"></div>
 <div class="col-md-6"><label class="form-label">Email</label><input type="email" name="company_email" class="form-control" value="{{ settings.get('COMPANY_EMAIL', '') }}"></div>
 </div>
-<div class="mb-3"><label class="form-label">Address</label><textarea name="company_address" class="form-control" rows="2">{{ settings.get('COMPANY_ADDRESS', '') }}</textarea></div>
+<div class="row mb-3">
+<div class="col-md-6"><label class="form-label">Address</label><textarea name="company_address" class="form-control" rows="2">{{ settings.get('COMPANY_ADDRESS', '') }}</textarea></div>
+<div class="col-md-6"><label class="form-label">Default Currency</label>
+<select name="default_currency" class="form-select">
+{% for code in currencies %}
+<option value="{{ code }}" {% if settings.get('DEFAULT_CURRENCY', 'INR') == code %}selected{% endif %}>{{ code }}</option>
+{% endfor %}
+</select></div>
+</div>
 </div></div>
 <div class="card mb-4"><div class="card-header"><span>Costing Defaults</span></div><div class="card-body">
 <div class="row mb-3">

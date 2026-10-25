@@ -155,7 +155,7 @@
         </div>
         
         <div class="login-footer">
-            <p class="mb-0">&copy; {{ current_year|default(2024) }} {{ config.COMPANY_NAME }}. All rights reserved.</p>
+            <p class="mb-0">&copy; {{ current_year|default(2024) }} {{ company.get('COMPANY_NAME') or config.COMPANY_NAME }}. All rights reserved.</p>
         </div>
     </div>
     

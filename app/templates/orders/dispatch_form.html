@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit Dispatch' if dispatch else 'New Dispatch' }} - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('orders.dispatches') }}">Dispatches</a></li>
+<li class="breadcrumb-item active">{{ 'Edit' if dispatch else 'New' }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Edit Dispatch ' ~ dispatch.dispatch_number if dispatch else 'New Dispatch' }}</h1>
+        <p class="page-subtitle">Order {{ order.order_number }} — {{ order.customer.company_name if order.customer else '' }}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('orders.view_order', id=order.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to order</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            {{ form.hidden_tag() }}
+            <div class="row g-3">
+                <div class="col-md-3">
+                    {{ form.dispatch_date.label(class="form-label") }}
+                    {{ form.dispatch_date(class="form-control") }}
+                </div>
+                <div class="col-md-3">
+                    {{ form.mode.label(class="form-label") }}
+                    {{ form.mode(class="form-select") }}
+                </div>
+                <div class="col-md-3">
+                    {{ form.status.label(class="form-label") }}
+                    {{ form.status(class="form-select") }}
+                </div>
+                <div class="col-md-3">
+                    {{ form.delivery_status.label(class="form-label") }}
+                    {{ form.delivery_status(class="form-select") }}
+                </div>
+
+                <div class="col-md-4">
+                    {{ form.transporter.label(class="form-label") }}
+                    {{ form.transporter(class="form-control") }}
+                </div>
+                <div class="col-md-4">
+                    {{ form.vehicle_number.label(class="form-label") }}
+                    {{ form.vehicle_number(class="form-control") }}
+                </div>
+                <div class="col-md-4">
+                    {{ form.shipment_reference.label(class="form-label") }}
+                    {{ form.shipment_reference(class="form-control") }}
+                </div>
+
+                <div class="col-md-4">
+                    {{ form.invoice_number.label(class="form-label") }}
+                    {{ form.invoice_number(class="form-control") }}
+                </div>
+                <div class="col-md-4">
+                    {{ form.invoice_date.label(class="form-label") }}
+                    {{ form.invoice_date(class="form-control") }}
+                </div>
+                <div class="col-md-4">
+                    {{ form.eway_bill_number.label(class="form-label") }}
+                    {{ form.eway_bill_number(class="form-control") }}
+                </div>
+
+                <div class="col-md-4">
+                    {{ form.packing_list_ref.label(class="form-label") }}
+                    {{ form.packing_list_ref(class="form-control") }}
+                </div>
+                <div class="col-md-8">
+                    {{ form.destination.label(class="form-label") }}
+                    {{ form.destination(class="form-control") }}
+                </div>
+
+                <div class="col-md-4">
+                    {{ form.delivered_date.label(class="form-label") }}
+                    {{ form.delivered_date(class="form-control") }}
+                </div>
+                <div class="col-md-4">
+                    {{ form.pod_reference.label(class="form-label") }}
+                    {{ form.pod_reference(class="form-control") }}
+                </div>
+                <div class="col-md-4">
+                    {{ form.receiver_name.label(class="form-label") }}
+                    {{ form.receiver_name(class="form-control") }}
+                </div>
+
+                <div class="col-12">
+                    {{ form.remarks.label(class="form-label") }}
+                    {{ form.remarks(class="form-control", rows="2") }}
+                </div>
+            </div>
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i> {{ 'Save Changes' if dispatch else 'Create Dispatch' }}
+                </button>
+                <a href="{{ url_for('orders.view_order', id=order.id) }}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Supplier Invoices - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Purchasing</li>
+<li class="breadcrumb-item active">Supplier Invoices</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Supplier Invoices</h1>
+        <p class="page-subtitle">Payables with paid / outstanding amounts</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('procurement.export_supplier_invoices', status=status) }}"
+           class="btn btn-outline-primary">
+            <i class="bi bi-download"></i> Export
+        </a>
+    </div>
+</div>
+
+{% set total_out = invoices.items|sum(attribute='outstanding_amount') %}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Invoices</div>
+        <div class="h4 mb-0">{{ invoices.total }}</div>
+    </div></div></div>
+    <div class="col-6 col-md-4"><div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Total Outstanding (this page)</div>
+        <div class="h4 mb-0 {% if total_out %}text-danger{% endif %}">{{ "{:,.0f}".format(total_out) }}</div>
+    </div></div></div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All</option>
+                    {% for s in ['posted', 'cancelled'] %}
+                    <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% set sort_qs = {'status': status, 'dir': 'asc' if dir == 'desc' else 'desc', 'per_page': per_page} %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr>
+                    <th><a href="{{ url_for('procurement.supplier_invoices', sort='number', **sort_qs) }}">Invoice</a></th>
+                    <th><a href="{{ url_for('procurement.supplier_invoices', sort='supplier', **sort_qs) }}">Supplier</a></th>
+                    <th><a href="{{ url_for('procurement.supplier_invoices', sort='date', **sort_qs) }}">Date</a></th>
+                    <th><a href="{{ url_for('procurement.supplier_invoices', sort='due', **sort_qs) }}">Due</a></th>
+                    <th class="text-end"><a href="{{ url_for('procurement.supplier_invoices', sort='total', **sort_qs) }}">Total</a></th>
+                    <th class="text-end">Paid</th>
+                    <th class="text-end">Outstanding</th><th>Ageing</th>
+                    <th><a href="{{ url_for('procurement.supplier_invoices', sort='status', **sort_qs) }}">Status</a></th>
+                </tr></thead>
+                <tbody>
+                {% for inv in invoices.items %}
+                    <tr>
+                        <td><strong>{{ inv.invoice_number }}</strong></td>
+                        <td>{% if inv.supplier %}<a href="{{ url_for('supplier.view', id=inv.supplier.id) }}">{{ inv.supplier.company_name }}</a>{% else %}-{% endif %}</td>
+                        <td>{{ inv.invoice_date }}</td>
+                        <td>{{ inv.due_date or '-' }}</td>
+                        <td class="text-end">{{ "{:,.0f}".format(inv.total_amount or 0) }}</td>
+                        <td class="text-end">{{ "{:,.0f}".format(inv.paid_amount) }}</td>
+                        <td class="text-end {% if inv.outstanding_amount %}text-danger{% endif %}">{{ "{:,.0f}".format(inv.outstanding_amount) }}</td>
+                        <td>
+                            {% if inv.ageing_bucket == 'not_due' %}<span class="badge bg-secondary-subtle text-secondary-emphasis">Not due</span>
+                            {% elif inv.ageing_bucket %}<span class="badge bg-danger-subtle text-danger-emphasis">{{ inv.ageing_bucket }}d</span>
+                            {% else %}&mdash;{% endif %}
+                        </td>
+                        <td>
+                            {% if inv.status == 'cancelled' %}<span class="badge-status badge-inactive">Cancelled</span>
+                            {% elif inv.is_paid %}<span class="badge-status badge-won">Paid</span>
+                            {% else %}<span class="badge-status badge-pending">Posted</span>{% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="9" class="text-center text-muted py-4">
+                        No supplier invoices recorded. Add one from a supplier's profile.
+                    </td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if invoices.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ invoices.items|length }} of {{ invoices.total }} invoices</small>
+        <nav aria-label="Page navigation">
+            <ul class="pagination mb-0">
+                {% if invoices.has_prev %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('procurement.supplier_invoices', page=invoices.prev_num, status=status, sort=sort, dir=dir, per_page=per_page) }}">Previous</a></li>
+                {% endif %}
+                {% for p in invoices.iter_pages() %}
+                    {% if p %}
+                    <li class="page-item {% if p == invoices.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('procurement.supplier_invoices', page=p, status=status, sort=sort, dir=dir, per_page=per_page) }}">{{ p }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                {% if invoices.has_next %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('procurement.supplier_invoices', page=invoices.next_num, status=status, sort=sort, dir=dir, per_page=per_page) }}">Next</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

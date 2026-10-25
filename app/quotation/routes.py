@@ -96,6 +96,12 @@ def new():
         
         db.session.add(quotation)
         db.session.commit()
+        notify_roles(
+            ['admin', 'sales', 'accounts'],
+            f'Quotation {quotation.quotation_number} created',
+            f'For {quotation.customer.company_name if quotation.customer else "-"}',
+            'quotation_created', 'quotation', quotation.id)
+        db.session.commit()
         
         flash(f'Quotation "{quotation.quotation_number}" created.', 'success')
         return redirect(url_for('quotation.view', id=quotation.id))
@@ -394,9 +400,11 @@ def cost_item(id):
     machining_cost = request.form.get('machining_cost', type=float) or 0
     vendor_cost = request.form.get('vendor_cost', type=float) or 0
     tooling_cost = request.form.get('tooling_cost', type=float) or 0
-    overhead = float(current_app.config.get('DEFAULT_OVERHEAD_PERCENT', 15))
-    profit = float(current_app.config.get('DEFAULT_PROFIT_PERCENT', 20))
-    scrap = float(current_app.config.get('DEFAULT_SCRAP_PERCENT', 2))
+    from app.utils import get_costing_defaults
+    defaults = get_costing_defaults()
+    overhead = defaults['DEFAULT_OVERHEAD_PERCENT']
+    profit = defaults['DEFAULT_PROFIT_PERCENT']
+    scrap = defaults['DEFAULT_SCRAP_PERCENT']
     
     result = calculate_total_cost(
         material_cost, machining_cost, vendor_cost, tooling_cost,

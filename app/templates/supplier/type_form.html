@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit Supplier Type' if supplier_type else 'New Supplier Type' }} - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Master Data</li>
+<li class="breadcrumb-item"><a href="{{ url_for('supplier.index') }}">Suppliers</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('supplier.types') }}">Supplier Types</a></li>
+<li class="breadcrumb-item active">{{ 'Edit' if supplier_type else 'New' }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Edit Supplier Type' if supplier_type else 'New Supplier Type' }}</h1>
+        <p class="page-subtitle">Types drive the supplier category dropdowns across the ERP</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" action="">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.type_code.label.text }} *</label>
+                        {{ form.type_code(class="form-control") }}
+                        {% if form.type_code.errors %}
+                        <div class="text-danger small mt-1">{{ form.type_code.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.type_name.label.text }} *</label>
+                        {{ form.type_name(class="form-control", placeholder="e.g., Raw Material") }}
+                        {% if form.type_name.errors %}
+                        <div class="text-danger small mt-1">{{ form.type_name.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.description.label.text }}</label>
+                        {{ form.description(class="form-control", rows="2") }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.sort_order.label.text }}</label>
+                        {{ form.sort_order(class="form-control") }}
+                        <small class="text-muted">Lower numbers appear first in dropdowns.</small>
+                    </div>
+                    <div class="form-check mb-3">
+                        {{ form.is_active(class="form-check-input") }}
+                        <label class="form-check-label">{{ form.is_active.label.text }}</label>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('supplier.types') }}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> {{ 'Update Type' if supplier_type else 'Create Type' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -22,7 +22,10 @@ class Config:
     # File Upload
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or 'uploads'
     MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH') or 16 * 1024 * 1024)  # 16MB
-    ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'webp', 'bmp', 'step', 'stp', 'iges', 'igs', 'dxf', 'dwg', 'zip'}
+    ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'webp', 'bmp', 'step', 'stp',
+                          'iges', 'igs', 'dxf', 'dwg', 'zip',
+                          # office / data documents
+                          'xlsx', 'xls', 'csv', 'docx', 'doc', 'txt'}
     
     # Session Configuration
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)

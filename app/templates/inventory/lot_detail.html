@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lot.lot_number }} - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Inventory</li>
+<li class="breadcrumb-item"><a href="{{ url_for('inventory.lots') }}">Material Lots</a></li>
+<li class="breadcrumb-item active">{{ lot.lot_number }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Lot {{ lot.lot_number }}</h1>
+        <p class="page-subtitle">
+            {{ lot.material.material_name if lot.material else 'Material' }}
+            {% if lot.grade %} · {{ lot.grade }}{% endif %}
+            {% if lot.heat_number %} · Heat {{ lot.heat_number }}{% endif %}
+            {% if lot.batch_number %} · Batch {{ lot.batch_number }}{% endif %}
+        </p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('inventory.ledger', lot_id=lot.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-list-ul"></i> Ledger</a>
+        {% if lot.order %}
+        <a href="{{ url_for('orders.view_order', id=lot.order.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-clipboard-data"></i> Order {{ lot.order.order_number }}</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    {% for label, val in [('Received', pos.received), ('Allocated', pos.allocated),
+                          ('Issued', pos.issued), ('Returned', pos.returned),
+                          ('Scrapped', pos.scrapped), ('Adjustments', pos.adjustment),
+                          ('Available', pos.available), ('Remaining', pos.remaining)] %}
+    <div class="col-6 col-md-3">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">{{ label }}</div>
+            <h4 class="mb-0">{{ "{:,.1f}".format(val) }} <small class="text-muted fs-6">{{ pos.unit }}</small></h4>
+        </div></div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">Traceability</div>
+    <div class="card-body">
+        <div class="row small">
+            <div class="col-md-3"><span class="text-muted">Supplier:</span>
+                {{ lot.supplier.company_name if lot.supplier else '—' }}</div>
+            <div class="col-md-3"><span class="text-muted">Purchase Order:</span>
+                {{ lot.po_id or '—' }}</div>
+            <div class="col-md-3"><span class="text-muted">Receipt:</span>
+                {{ lot.receipt_id or '—' }}</div>
+            <div class="col-md-3"><span class="text-muted">Certificate:</span>
+                {{ lot.certificate_ref or '—' }}</div>
+            <div class="col-md-3 mt-2"><span class="text-muted">Specification:</span>
+                {{ lot.specification or '—' }}</div>
+            <div class="col-md-3 mt-2"><span class="text-muted">Received On:</span>
+                {{ lot.receipt_date or '—' }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">Movements</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th>Date</th><th>Type</th><th class="text-end">Qty</th>
+                        <th>Reference</th><th class="text-end">Action</th></tr></thead>
+                    <tbody>
+                        {% for m in movements %}
+                        <tr>
+                            <td class="small">{{ m.movement_date }}</td>
+                            <td>{{ m.movement_type }}</td>
+                            <td class="text-end">{{ "{:,.1f}".format(m.quantity) }}</td>
+                            <td class="small text-muted">{{ m.reference or '—' }}</td>
+                            <td class="text-end">
+                                {% if m.movement_type != 'receipt' %}
+                                <form method="POST" action="{{ url_for('inventory.reverse_movement', id=m.id) }}"
+                                      onsubmit="return confirm('Reverse this movement with a compensating adjustment?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="btn btn-sm btn-outline-danger">Reverse</button>
+                                </form>
+                                {% else %}
+                                <span class="text-muted small">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-3">No movements.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Transfers</span>
+                <a href="{{ url_for('inventory.new_transfer') }}" class="btn btn-sm btn-outline-primary">New</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th>Number</th><th>Date</th><th>From → To</th>
+                        <th class="text-end">Qty</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for t in transfers %}
+                        <tr>
+                            <td class="small">{{ t.transfer_number }}</td>
+                            <td class="small">{{ t.transfer_date }}</td>
+                            <td class="small">{{ t.from_location.name if t.from_location else '—' }}
+                                → {{ t.to_location.name if t.to_location else '—' }}</td>
+                            <td class="text-end">{{ "{:,.1f}".format(t.quantity) }}</td>
+                            <td><span class="badge bg-secondary">{{ t.status }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-3">No transfers.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Adjustments</span>
+                <a href="{{ url_for('inventory.new_adjustment') }}" class="btn btn-sm btn-outline-primary">New</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th>Number</th><th>Date</th><th>Type</th>
+                        <th class="text-end">Qty</th><th>Reason</th></tr></thead>
+                    <tbody>
+                        {% for a in adjustments %}
+                        <tr>
+                            <td class="small">{{ a.adjustment_number }}</td>
+                            <td class="small">{{ a.adjustment_date }}</td>
+                            <td>{{ a.adjustment_type }}</td>
+                            <td class="text-end">{{ "{:,.1f}".format(a.quantity) }}</td>
+                            <td class="small text-muted">{{ a.reason or '—' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-3">No adjustments.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

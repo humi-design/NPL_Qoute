@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Vendor Process Tracking - NPL ERP{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">Live Operations</li>
+<li class="breadcrumb-item active">Vendor Process Tracking</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Vendor Process Tracking</h1>
+        <p class="page-subtitle">Every order tracked through its manufacturing operations, first step to warehouse receipt</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('orders.export_vendor_processes') }}" class="btn btn-outline-primary">
+            <i class="bi bi-download"></i> Export</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    {% for label, val in [('Planned', totals.planned), ('Issued', totals.issued),
+                          ('Returned', totals.returned), ('Accepted', totals.accepted),
+                          ('Rejected', totals.rejected), ('Rework', totals.rework),
+                          ('Pending', totals.pending)] %}
+    <div class="col-6 col-md">
+        <div class="card"><div class="card-body py-2">
+            <div class="text-muted small">{{ label }}</div>
+            <h4 class="mb-0 {% if label in ('Rejected','Pending') and val %}text-danger{% endif %}">{{ val }}</h4>
+        </div></div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small">Search</label>
+                <input type="text" class="form-control" name="search"
+                       placeholder="Order, operation, drawing, vendor..." value="{{ search }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Vendor</label>
+                <select name="vendor_id" class="form-select">
+                    <option value="">All</option>
+                    {% for v in vendors %}
+                    <option value="{{ v.id }}" {% if vendor_id == v.id %}selected{% endif %}>{{ v.vendor_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All</option>
+                    {% for s in ['pending','in_progress','completed','cancelled'] %}
+                    <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s.replace('_',' ')|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" name="only_vendor" value="1" {% if only_vendor == '1' %}checked{% endif %}>
+                    <label class="form-check-label small">Subcontract only</label>
+                </div>
+            </div>
+            <div class="col-md-1">
+                <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" name="overdue" value="1" {% if overdue == '1' %}checked{% endif %}>
+                    <label class="form-check-label small">Overdue</label>
+                </div>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% set sort_qs = {'search': search, 'vendor_id': vendor_id, 'status': status, 'only_vendor': only_vendor, 'overdue': overdue, 'dir': 'desc' if dir == 'asc' else 'asc', 'per_page': per_page} %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th><a href="{{ url_for('orders.vendor_processes', sort='order', **sort_qs) }}">Order</a></th>
+                        <th><a href="{{ url_for('orders.vendor_processes', sort='sequence', **sort_qs) }}">#</a></th>
+                        <th><a href="{{ url_for('orders.vendor_processes', sort='operation', **sort_qs) }}">Operation</a></th>
+                        <th><a href="{{ url_for('orders.vendor_processes', sort='vendor', **sort_qs) }}">Vendor</a></th>
+                        <th class="text-end">Planned</th>
+                        <th class="text-end">Issued</th>
+                        <th class="text-end">Returned</th>
+                        <th class="text-end">Accepted</th>
+                        <th class="text-end">Rejected</th>
+                        <th class="text-end">Rework</th>
+                        <th class="text-end">Pending</th>
+                        <th><a href="{{ url_for('orders.vendor_processes', sort='due_date', **sort_qs) }}">Due</a></th>
+                        <th><a href="{{ url_for('orders.vendor_processes', sort='status', **sort_qs) }}">Status</a></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for op in operations %}
+                    <tr class="{% if op.is_overdue %}table-danger{% endif %}">
+                        <td><a href="{{ url_for('orders.view_order', id=op.order_id) }}">{{ op.order.order_number }}</a></td>
+                        <td>{{ op.sequence }}</td>
+                        <td>{{ op.operation_name }}
+                            {% if op.is_final %}<span class="badge-status badge-won">Final</span>{% endif %}
+                            {% if op.is_vendor %}<span class="badge-status badge-sent">Vendor</span>{% endif %}
+                        </td>
+                        <td>{{ op.vendor.vendor_name if op.vendor else '—' }}</td>
+                        <td class="text-end">{{ op.quantity_planned }}</td>
+                        <td class="text-end">{{ op.issued_quantity }}</td>
+                        <td class="text-end">{{ op.returned_quantity }}</td>
+                        <td class="text-end">{{ op.accepted_quantity }}</td>
+                        <td class="text-end {% if op.rejected_quantity %}text-danger{% endif %}">{{ op.rejected_quantity }}</td>
+                        <td class="text-end">{{ op.rework_quantity }}</td>
+                        <td class="text-end">{{ op.pending_quantity }}</td>
+                        <td>{{ op.due_date or '-' }}</td>
+                        <td>
+                            {% if op.status == 'completed' %}<span class="badge-status badge-won">Completed</span>
+                            {% elif op.status == 'cancelled' %}<span class="badge-status badge-inactive">Cancelled</span>
+                            {% elif op.status == 'in_progress' %}<span class="badge-status badge-sent">In Progress</span>
+                            {% else %}<span class="badge-status badge-pending">Pending</span>{% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="13" class="text-center text-muted py-4">
+                        No operations found. Add operations from an order's detail page.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if pagination.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ pagination.items|length }} of {{ pagination.total }} operations</small>
+        <nav><ul class="pagination mb-0">
+            {% if pagination.has_prev %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('orders.vendor_processes', page=pagination.prev_num, search=search, vendor_id=vendor_id, status=status, only_vendor=only_vendor, overdue=overdue, sort=sort, dir=dir, per_page=per_page) }}">Previous</a></li>
+            {% endif %}
+            {% for p in pagination.iter_pages() %}
+                {% if p %}
+                <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('orders.vendor_processes', page=p, search=search, vendor_id=vendor_id, status=status, only_vendor=only_vendor, overdue=overdue, sort=sort, dir=dir, per_page=per_page) }}">{{ p }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            {% if pagination.has_next %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('orders.vendor_processes', page=pagination.next_num, search=search, vendor_id=vendor_id, status=status, only_vendor=only_vendor, overdue=overdue, sort=sort, dir=dir, per_page=per_page) }}">Next</a></li>
+            {% endif %}
+        </ul></nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -4,7 +4,8 @@ from sqlalchemy import or_
 from app.customer import customer_bp
 from app.models import db, Customer, Quotation, Attachment
 from app.forms import CustomerForm
-from app.utils import generate_customer_code, upload_file, delete_file, export_customers_to_excel
+from app.utils import (generate_customer_code, upload_file, delete_file,
+                       export_customers_to_excel, referential_delete_block)
 
 
 @customer_bp.route('/')
@@ -199,9 +200,12 @@ def delete(id):
     """Delete customer."""
     customer = Customer.query.get_or_404(id)
     
-    # Check for existing quotations
-    if customer.quotations.count() > 0:
-        flash(f'Cannot delete customer with existing quotations.', 'danger')
+    # Refuse while anything still references the customer (quotations, RFQs,
+    # orders, dispatches). Deleting anyway raises an IntegrityError on the
+    # non-nullable order / RFQ foreign keys.
+    block = referential_delete_block(customer)
+    if block:
+        flash(block, 'danger')
         return redirect(url_for('customer.view', id=id))
     
     # Delete attachments
