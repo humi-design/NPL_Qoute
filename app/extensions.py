@@ -244,4 +244,20 @@ def create_app(config_name='default'):
             app.logger.warning('Could not create upload directory %s: %s',
                                folder, exc)
 
+    # Bring the schema up to date on boot.
+    #
+    # Deploying newer code onto a database created by an older release leaves
+    # the new tables missing, and every page that touches them fails with
+    # "no such table" (HTTP 500). Relying on a manual step meant a deploy could
+    # leave the site down until someone remembered to run it, so the same
+    # idempotent upgrader now runs here. It is additive and writes nothing when
+    # the schema is already current, and it is best-effort: a failure is logged
+    # rather than raised, because raising would take down every URL on the site.
+    if app.config.get('AUTO_UPGRADE_DB', True):
+        try:
+            from app.schema_upgrade import auto_upgrade
+            auto_upgrade(app)
+        except Exception as exc:  # noqa: BLE001
+            app.logger.warning('Automatic database upgrade failed: %s', exc)
+
     return app

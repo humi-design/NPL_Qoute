@@ -14,7 +14,7 @@ os.environ.setdefault('SECRET_KEY', 'test-secret')
 
 from app.extensions import create_app, db  # noqa: E402
 from app.models import Customer, User  # noqa: E402
-from upgrade_db import upgrade_database  # noqa: E402
+from app.schema_upgrade import upgrade_database  # noqa: E402
 
 
 @pytest.fixture()
@@ -23,7 +23,11 @@ def app(tmp_path):
     # override has to be applied to the class before create_app() runs.
     from app.config import ProductionConfig
     ProductionConfig.SQLALCHEMY_DATABASE_URI = f'sqlite:///{tmp_path / "upgrade.db"}'
+    # Build the "old" schema by hand in each test, so the automatic upgrade on
+    # boot must stay out of the way.
+    ProductionConfig.AUTO_UPGRADE_DB = False
     app = create_app('production')
+    app.config['AUTO_UPGRADE_DB'] = False
     yield app
 
 
