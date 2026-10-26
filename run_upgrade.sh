@@ -1,6 +1,13 @@
 #!/bin/bash
 # Bring the database up to date with the current code.
 #
+# THIS IS A BASH SCRIPT, NOT A PYTHON SCRIPT.
+# Do not select it in cPanel's "Run Script" control, which executes the chosen
+# file with the application's Python interpreter; Python would try to parse the
+# bash below and fail with "SyntaxError: invalid syntax". To upgrade from the
+# cPanel GUI, run upgrade_db.py instead. Use this file only from a real shell
+# (cPanel Terminal or SSH).
+#
 # Finds the application's virtualenv for you, so there is no separate
 # activation step to get wrong, and so it works from a cron job. Safe to run
 # repeatedly: it only creates missing tables and adds missing columns.
