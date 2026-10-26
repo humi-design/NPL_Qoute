@@ -42,7 +42,7 @@
 3. Create application:
    - Python version: `3.11`
    - Application root: `/home/user/npl_erp`
-   - Startup file: `application.wsgi`
+   - Startup file: `passenger_wsgi.py`
 4. Install dependencies in the virtual environment
 5. Create MySQL database via cPanel
 6. Update `.env` with database credentials
@@ -62,7 +62,7 @@ See [CPANEL_DEPLOYMENT.md](./CPANEL_DEPLOYMENT.md) for detailed instructions.
    ```
 3. Configure database and `.env`
 4. Run `python seed_data.py`
-5. Configure Apache with `.htaccess` and `application.wsgi`
+5. Let cPanel write the Passenger block into `.htaccess` (do not replace it)
 
 ---
 

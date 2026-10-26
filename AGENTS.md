@@ -421,7 +421,32 @@ Configs: `app/config.py` — `development`, `testing`, `production`.
 - Tests: `tests/test_upgrade_db.py` covers table creation, column backfill,
   data preservation and idempotency; `tests/test_app_factory.py` covers the
   boot-time upgrade and the opt-out; `tests/test_run_upgrade_wrapper.py` covers
-  the wrapper. Full suite: **250 passed, 3 skipped**.
+  the wrapper; `tests/test_htaccess_config.py` covers the Apache/Passenger
+  contract. Full suite: **257 passed, 3 skipped**.
+
+## cPanel routing (Passenger) — the "every page 404s" outage
+- cPanel runs Python apps through **Passenger**, which starts and routes the app
+  using a `PassengerAppRoot` / `PassengerBaseURI` / `PassengerStartupFile`
+  block that cPanel writes into `.htaccess` in the application root.
+- There is only **one** `.htaccess` per directory. The repository used to ship a
+  mod_wsgi-style file (`RewriteRule ^(.*)$ application.wsgi/$1`) with no
+  Passenger block, so deploying it **overwrote cPanel's block**. Passenger then
+  stopped starting the app and Apache served the directory as static files:
+  every URL returned 404 *and* the source tree became publicly downloadable.
+- Diagnosis in one command — if this returns `200`, the app is not running:
+  `curl -s -o /dev/null -w '%{http_code}\n' https://DOMAIN/RFQ/requirements.txt`
+- The shipped `.htaccess` now carries cPanel's own
+  `CLOUDLINUX PASSENGER CONFIGURATION` markers, so pressing **Restart** in
+  Setup Python App regenerates the block with the correct paths.
+- The Passenger startup file is `passenger_wsgi.py` (it exports `application`),
+  **not** `application.wsgi`. `application.wsgi` still exists for a plain
+  mod_wsgi host and is documented as such.
+- `PassengerBaseURI /RFQ` sets `SCRIPT_NAME=/RFQ`; Flask puts that prefix back
+  into generated URLs, so links and form actions stay under `/RFQ`.
+  `tests/test_htaccess_config.py` asserts this at the WSGI level.
+- Uploaded documents are served through authenticated Flask routes
+  (`send_file`), never statically, so denying direct `/uploads/` access in
+  `.htaccess` is correct and does not break downloads.
 
 ## cPanel startup robustness
 - `create_app()` creates the `uploads/*` directories on every boot. Two
