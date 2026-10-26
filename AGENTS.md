@@ -393,24 +393,35 @@ Configs: `app/config.py` — `development`, `testing`, `production`.
   amounts, and `admin`/`accounts` do. Full suite: **232 passed, 3 skipped**.
 
 ## Upgrading an existing database (cPanel)
-- The app **never creates tables at startup** — `create_app()` only registers
-  blueprints. Deploying newer code onto a database created by an older release
-  therefore fails at runtime with `no such table: orders` (HTTP 500) on pages
-  that used to work. This is the most common "the site broke after deploy" cause.
-- Run the additive upgrader from the application root with the virtualenv active:
+- `create_app()` **runs the additive upgrader automatically on boot**, so
+  deploying newer code onto a database created by an older release repairs
+  itself at the first request. Before this, the upgrade was a manual step, so a
+  deploy could leave the site returning HTTP 500 (`no such table: orders`) on
+  pages that used to work until someone remembered to run it.
+- Logic lives in `app/schema_upgrade.py`; `upgrade_db.py` and `create_app()`
+  are both thin callers. Failure is logged, never raised — raising from
+  `create_app()` would mean the WSGI application object is never created and
+  *every* URL fails, which is worse than booting on a stale schema.
+- Set `AUTO_UPGRADE_DB=false` to manage the schema yourself.
+- To upgrade without booting the app, or to see a report of what changed:
   ```bash
-  python upgrade_db.py
+  ./run_upgrade.sh        # finds the virtualenv itself; works from any directory
   ```
-  It creates missing tables and adds missing columns, and is safe to re-run
-  (idempotent). It never drops, renames or rewrites anything, and never touches
-  rows, so existing data is preserved.
+  `run_upgrade.sh` exists because the two-line form (`source .../activate` then
+  `python upgrade_db.py`) is easy to paste as one line, and because on
+  CloudLinux/cPanel the virtualenv's `bin/python` is a shell wrapper rather than
+  a binary — calling it as `bin/python bin/python upgrade_db.py` makes Python
+  parse bash and fail with `SyntaxError: invalid syntax`. The wrapper executes
+  each interpreter candidate before trusting it.
 - `upgrade_db.py` is the code-level equivalent of `migrate.sql`; use it when the
-  host has no SQL client (typical cPanel). On a fresh database either
-  `schema.sql` + `migrate.sql`, or `seed_data.py`, remain the documented paths.
+  host has no SQL client (typical cPanel). `migrate.sql` is the phpMyAdmin
+  fallback and runs on both MySQL 8 and MariaDB.
 - New columns are added **nullable** on purpose: a `NOT NULL` column with no
   default cannot be added to a populated table.
 - Tests: `tests/test_upgrade_db.py` covers table creation, column backfill,
-  data preservation and idempotency.
+  data preservation and idempotency; `tests/test_app_factory.py` covers the
+  boot-time upgrade and the opt-out; `tests/test_run_upgrade_wrapper.py` covers
+  the wrapper. Full suite: **248 passed, 3 skipped**.
 
 ## cPanel startup robustness
 - `create_app()` creates the `uploads/*` directories on every boot. Two

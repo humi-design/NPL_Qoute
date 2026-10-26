@@ -104,15 +104,31 @@ This is safe to run repeatedly and never deletes or rewrites existing rows.
 Namecheap shared hosting runs **MySQL 8**, and its Python App terminal is
 sometimes unavailable or times out on long scripts. Two things to know:
 
-**Preferred: run the Python upgrader.** In cPanel go to **Setup Python App**,
-find your application, and click the **Terminal** icon (or use *Advanced →
-Terminal*). Then:
+**Preferred: run the wrapper.** It finds the application's virtualenv itself, so
+there is no activation step to get wrong, and it works from any directory:
 
 ```bash
-cd ~/npl_erp
-source ~/virtualenv/npl_erp/3.11/bin/activate
-python upgrade_db.py
+~/npl_erp/run_upgrade.sh
 ```
+
+**If you prefer to call Python directly, pass exactly one path.** Two things go
+wrong here often enough to be worth naming:
+
+```bash
+# CORRECT - interpreter, then the script
+/home/CPANEL_USER/virtualenv/npl_erp/3.11/bin/python /home/CPANEL_USER/npl_erp/upgrade_db.py
+```
+
+* **Do not put `source .../activate` and `python upgrade_db.py` on one line.**
+  They are two commands. Pasted together, the shell runs
+  `python source .../activate` and Python reports
+  `can't open file '.../source': [Errno 2] No such file or directory`.
+* **Do not pass the interpreter path twice.** On CloudLinux/cPanel the
+  virtualenv's `bin/python` is a shell script that runs the real interpreter,
+  not the interpreter itself. Writing
+  `.../bin/python .../bin/python upgrade_db.py` makes Python read that shell
+  script and fail with `SyntaxError: invalid syntax` on its `[[ $EUID -eq 0 ]]`
+  line. `run_upgrade.sh` avoids both traps.
 
 If the terminal is unavailable, run the same command through a cron job
 (**cPanel → Cron Jobs**, "Once Per Minute", then delete the job afterwards):
