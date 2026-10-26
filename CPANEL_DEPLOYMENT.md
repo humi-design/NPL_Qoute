@@ -32,9 +32,18 @@ Before starting, ensure you have:
    - **Python version**: `3.11`
    - **Application root**: `/home/username/npl_erp`
    - **Application URL**: Your domain or subdomain
-   - **Application startup file**: `application.wsgi`
+   - **Application startup file**: `passenger_wsgi.py`
    - **Passenger log file**: `logs/error.log`
 4. Click **Create**
+
+> **The startup file must be `passenger_wsgi.py`, not `application.wsgi`.**
+> cPanel runs Python apps through Passenger, and Passenger loads the file you
+> name here. `passenger_wsgi.py` exports the WSGI callable as `application`,
+> which is the name Passenger expects; `application.wsgi` does the same but
+> carries a `.wsgi` extension that Passenger does not look for. Setting the
+> wrong one makes cPanel serve the directory as static files — every URL
+> returns 404, and your source code becomes downloadable. See
+> [Troubleshooting](#issue-every-page-returns-404) below.
 
 ### Step 3: Install Dependencies
 
@@ -174,7 +183,12 @@ inserts demo data.
 
 ---
 
-## Method 2: Traditional Apache + mod_wsgi
+## Method 2: Traditional Apache + mod_wsgi (not cPanel)
+
+> **This method does not apply to cPanel or Namecheap.** Those hosts run Python
+> through Passenger, not mod_wsgi, and the rewrite below is what breaks the
+> application when it reaches an application root that Passenger manages. Keep
+> it for a plain Apache server where you installed `mod_wsgi` yourself.
 
 ### Step 1: Upload Files
 
@@ -192,18 +206,22 @@ pip install -r requirements.txt
 
 ### Step 3: Configure Apache
 
-Create/edit `.htaccess` in your application root:
+On a host where you control Apache and `mod_wsgi` is installed, point the WSGI
+daemon at `application.wsgi`:
 
 ```apache
-RewriteEngine On
-RewriteBase /
-RewriteRule ^(.*)$ application.wsgi/$1 [QSA,L]
+WSGIDaemonProcess npl_erp python-home=/home/USER/virtualenv/npl_erp/3.11 \
+    python-path=/home/USER/npl_erp
+WSGIProcessGroup npl_erp
+WSGIScriptAlias / /home/USER/npl_erp/application.wsgi
 
-<FilesMatch "\.(env|pyc|sqlite)$">
-    Order allow,deny
-    Deny from all
+<FilesMatch "\.(env|pyc|sqlite|db)$">
+    Require all denied
 </FilesMatch>
 ```
+
+Do **not** port this into a cPanel application root. There, Passenger owns the
+routing and `WSGIScriptAlias` is not read; adding it only hides the app.
 
 ### Step 4: Update Configuration
 
@@ -261,6 +279,51 @@ Follow Steps 4-7 from Method 1.
 ---
 
 ## Troubleshooting
+
+### Issue: Every page returns 404
+
+This is the most common cPanel failure, and it is **not** a bug in the
+application. It means Apache is serving your application directory as plain
+files instead of handing requests to Passenger, so the app never runs.
+
+**Confirm it in one command.** If Passenger were running the app, source files
+would not be downloadable. If these return `200`, the app is not running:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://YOUR_DOMAIN/RFQ/requirements.txt
+```
+
+`200` means the file was served as text — Apache is treating `/RFQ` as a
+directory of files. (`404` means Passenger is routing correctly and the URL is
+simply wrong.)
+
+**Two causes, in order of likelihood:**
+
+1. **The `.htaccess` in your application root has no Passenger block.** Only one
+   `.htaccess` can exist per directory, so uploading the repository's copy
+   overwrites the block cPanel wrote. Look for these lines and restore them via
+   **Setup Python App → your app → Restart**, which makes cPanel rewrite them:
+
+   ```apache
+   # DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+   PassengerAppRoot "/home/USER/APP"
+   PassengerBaseURI "/RFQ"
+   PassengerAppType wsgi
+   PassengerStartupFile passenger_wsgi.py
+   PassengerPython "/home/USER/virtualenv/.../bin/python"
+   # DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+   ```
+
+   The `.htaccess` shipped with this project already contains this block, so
+   after deploying it you only need to check that the four paths match your
+   account.
+
+2. **The startup file is set to `application.wsgi`.** Change it to
+   `passenger_wsgi.py` in **Setup Python App**.
+
+**While the app is not running, your source code is public.** Anyone can
+download `app/models.py`, `schema.sql` and the rest. Fix this before doing
+anything else.
 
 ### Issue: Application won't start
 

@@ -1,48 +1,98 @@
-# Apache Configuration for Flask on cPanel
-# Enable URL rewriting
-RewriteEngine On
+# Apache configuration for the NPL Fasteners ERP.
+#
+# =============================================================================
+# READ THIS BEFORE EDITING OR REPLACING THIS FILE
+# =============================================================================
+# cPanel (CloudLinux) runs Python apps through **Passenger**, which starts and
+# routes the application using a block it writes into this very file:
+#
+#     # DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+#     PassengerAppRoot "/home/USER/APP"
+#     PassengerBaseURI "/RFQ"
+#     PassengerAppType wsgi
+#     PassengerStartupFile passenger_wsgi.py
+#     PassengerPython "/home/USER/virtualenv/.../bin/python"
+#     # DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+#
+# There is only ever one .htaccess per directory, so **uploading this file
+# overwrites that block** and Passenger stops starting the app. The symptom is
+# not a 500: Apache simply serves the directory as ordinary files, so every URL
+# returns 404 and source files become downloadable.
+#
+# This file therefore *includes* the Passenger block below. If your username,
+# application root, Python version or URL prefix differ, update the values
+# before deploying, or re-create the app in cPanel's "Setup Python App" so that
+# cPanel regenerates the block.
+#
+# Do NOT add a mod_wsgi rewrite here. An earlier revision of this file ended
+# with:
+#
+#     RewriteRule ^(.*)$ application.wsgi/$1 [QSA,L]
+#
+# which does nothing on cPanel (mod_wsgi is not installed) and shadows
+# Passenger's routing.
+# =============================================================================
 
-# Set the base directory
-RewriteBase /
+# -----------------------------------------------------------------------------
+# Passenger / CloudLinux application configuration
+# -----------------------------------------------------------------------------
+# The markers below are cPanel's own. Anything between them is managed by
+# "Setup Python App", so pressing **Restart** there rewrites this block with
+# the correct paths for your account - which is the authoritative fix if the
+# values here do not match your deployment.
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/humijxhw/nirmalprecision.com/RFQ"
+PassengerBaseURI "/RFQ"
+PassengerAppType wsgi
+PassengerStartupFile passenger_wsgi.py
+PassengerPython "/home/humijxhw/virtualenv/nirmalprecision.com/RFQ/3.9/bin/python"
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
 
-# Redirect all requests to the WSGI application
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ application.wsgi/$1 [QSA,L]
-
+# -----------------------------------------------------------------------------
 # Protect sensitive files
-<FilesMatch "\.(env|pyc|sqlite|db)$">
-    Order allow,deny
-    Deny from all
+# -----------------------------------------------------------------------------
+# Everything below is defence in depth. Passenger routes normal requests to the
+# application, but a misconfiguration must not turn the source tree into a
+# public file server.
+
+# Environment files, compiled bytecode, databases and logs.
+<FilesMatch "\.(env|pyc|pyo|sqlite|sqlite3|db|log|bak|orig|swp|tar|gz|zip)$">
+    Require all denied
 </FilesMatch>
 
-# Protect configuration files
-<FilesMatch "^(config|settings)\.py$">
-    Order allow,deny
-    Deny from all
+# Python source, SQL and documentation must never be served as text. Passenger
+# executes passenger_wsgi.py; it does not need these reachable over HTTP.
+<FilesMatch "\.(py|wsgi|sql|md|cfg|ini|toml|yml|yaml)$">
+    Require all denied
 </FilesMatch>
 
-# Enable compression
-<IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json
-</IfModule>
+# Version control and editor metadata.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
 
-# Set caching for static files
+# Directories that are never public.
+RedirectMatch 404 /(\.git|\.venv|venv|__pycache__|tests|logs|migrations|uploads|fastener_data|instance)(/|$)
+
+# -----------------------------------------------------------------------------
+# Static file caching
+# -----------------------------------------------------------------------------
 <IfModule mod_expires.c>
     ExpiresActive On
     ExpiresByType image/jpg "access plus 1 year"
     ExpiresByType image/jpeg "access plus 1 year"
     ExpiresByType image/gif "access plus 1 year"
     ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
     ExpiresByType text/css "access plus 1 month"
     ExpiresByType application/javascript "access plus 1 month"
     ExpiresByType application/pdf "access plus 1 month"
 </IfModule>
 
-# Protect upload directory
-<Directory "uploads/">
-    <FilesMatch "\.(php|phtml|php3|php4|php5|pl|py|cgi)$">
-        Order allow,deny
-        Deny from all
-    </FilesMatch>
-</Directory>
+# -----------------------------------------------------------------------------
+# Compression
+# -----------------------------------------------------------------------------
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css \
+        application/javascript application/json
+</IfModule>
