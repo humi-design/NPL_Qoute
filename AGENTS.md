@@ -391,3 +391,33 @@ Configs: `app/config.py` — `development`, `testing`, `production`.
   Quantities, statuses and delivery performance stay visible to all roles.
 - Tests: `tests/test_financial_visibility.py` asserts a `read_only` user sees no
   amounts, and `admin`/`accounts` do. Full suite: **232 passed, 3 skipped**.
+
+## Upgrading an existing database (cPanel)
+- The app **never creates tables at startup** — `create_app()` only registers
+  blueprints. Deploying newer code onto a database created by an older release
+  therefore fails at runtime with `no such table: orders` (HTTP 500) on pages
+  that used to work. This is the most common "the site broke after deploy" cause.
+- Run the additive upgrader from the application root with the virtualenv active:
+  ```bash
+  python upgrade_db.py
+  ```
+  It creates missing tables and adds missing columns, and is safe to re-run
+  (idempotent). It never drops, renames or rewrites anything, and never touches
+  rows, so existing data is preserved.
+- `upgrade_db.py` is the code-level equivalent of `migrate.sql`; use it when the
+  host has no SQL client (typical cPanel). On a fresh database either
+  `schema.sql` + `migrate.sql`, or `seed_data.py`, remain the documented paths.
+- New columns are added **nullable** on purpose: a `NOT NULL` column with no
+  default cannot be added to a populated table.
+- Tests: `tests/test_upgrade_db.py` covers table creation, column backfill,
+  data preservation and idempotency.
+
+## cPanel startup robustness
+- `create_app()` creates the `uploads/*` directories on every boot. Two
+  production hazards were fixed there:
+  - Creation is now best-effort (`try/except OSError` + warning). Previously an
+    unwritable document root raised `PermissionError`, so the WSGI application
+    object was never created and **every** URL on the site failed to load.
+  - Paths are anchored to the project root instead of the process CWD, because
+    Passenger/mod_wsgi do not guarantee the CWD is the application root.
+- Tests: `tests/test_app_factory.py`.
