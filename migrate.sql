@@ -1,6 +1,12 @@
 -- NPL Fasteners ERP - Safe Migration Script
 -- Only creates/alters if something is missing
--- Run in phpMyAdmin SQL tab
+-- Run in the phpMyAdmin SQL tab
+--
+-- Works on both MySQL 8 and MariaDB. Every ALTER TABLE / CREATE INDEX is
+-- wrapped in an information_schema guard, because MySQL does not support the
+-- MariaDB-only "ADD COLUMN IF NOT EXISTS" / "CREATE INDEX IF NOT EXISTS"
+-- syntax (it fails with ERROR 1064). The guards make each statement a no-op
+-- when it has already been applied, so this file is safe to run repeatedly.
 
 -- =============================================
 -- USERS TABLE
@@ -19,17 +25,53 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Add missing columns
-ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(64) NOT NULL UNIQUE AFTER id;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(120) NOT NULL UNIQUE AFTER username;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NOT NULL AFTER email;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(120) AFTER password_hash;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'read_only' AFTER full_name;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE AFTER role;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login DATETIME AFTER updated_at;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='users' AND column_name='username')=0,
+  'ALTER TABLE `users` ADD COLUMN `username` VARCHAR(64) NOT NULL UNIQUE AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='users' AND column_name='email')=0,
+  'ALTER TABLE `users` ADD COLUMN `email` VARCHAR(120) NOT NULL UNIQUE AFTER username',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='users' AND column_name='password_hash')=0,
+  'ALTER TABLE `users` ADD COLUMN `password_hash` VARCHAR(255) NOT NULL AFTER email',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='users' AND column_name='full_name')=0,
+  'ALTER TABLE `users` ADD COLUMN `full_name` VARCHAR(120) AFTER password_hash',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='users' AND column_name='role')=0,
+  'ALTER TABLE `users` ADD COLUMN `role` VARCHAR(20) NOT NULL DEFAULT ''read_only'' AFTER full_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='users' AND column_name='is_active')=0,
+  'ALTER TABLE `users` ADD COLUMN `is_active` BOOLEAN DEFAULT TRUE AFTER role',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='users' AND column_name='last_login')=0,
+  'ALTER TABLE `users` ADD COLUMN `last_login` DATETIME AFTER updated_at',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- Add indexes
-CREATE INDEX IF NOT EXISTS idx_username ON users(username);
-CREATE INDEX IF NOT EXISTS idx_email ON users(email);
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.statistics
+  WHERE table_schema=DATABASE() AND table_name='users' AND index_name='idx_username')=0,
+  'CREATE INDEX `idx_username` ON `users` (username)',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.statistics
+  WHERE table_schema=DATABASE() AND table_name='users' AND index_name='idx_email')=0,
+  'CREATE INDEX `idx_email` ON `users` (email)',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- Add admin user (password: admin123)
 INSERT IGNORE INTO users (username, email, password_hash, full_name, role, is_active)
@@ -65,14 +107,46 @@ CREATE TABLE IF NOT EXISTS customers (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_code VARCHAR(20) NOT NULL UNIQUE AFTER id;
-ALTER TABLE customers ADD COLUMN IF NOT EXISTS company_name VARCHAR(200) NOT NULL AFTER customer_code;
-ALTER TABLE customers ADD COLUMN IF NOT EXISTS mobile VARCHAR(30) AFTER phone;
-ALTER TABLE customers ADD COLUMN IF NOT EXISTS pan VARCHAR(20) AFTER gst_vat;
-ALTER TABLE customers ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100) AFTER currency;
-ALTER TABLE customers ADD COLUMN IF NOT EXISTS incoterms VARCHAR(50) AFTER payment_terms;
-ALTER TABLE customers ADD COLUMN IF NOT EXISTS shipping_terms VARCHAR(200) AFTER incoterms;
-ALTER TABLE customers ADD COLUMN IF NOT EXISTS delivery_address TEXT AFTER shipping_address;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='customers' AND column_name='customer_code')=0,
+  'ALTER TABLE `customers` ADD COLUMN `customer_code` VARCHAR(20) NOT NULL UNIQUE AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='customers' AND column_name='company_name')=0,
+  'ALTER TABLE `customers` ADD COLUMN `company_name` VARCHAR(200) NOT NULL AFTER customer_code',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='customers' AND column_name='mobile')=0,
+  'ALTER TABLE `customers` ADD COLUMN `mobile` VARCHAR(30) AFTER phone',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='customers' AND column_name='pan')=0,
+  'ALTER TABLE `customers` ADD COLUMN `pan` VARCHAR(20) AFTER gst_vat',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='customers' AND column_name='payment_terms')=0,
+  'ALTER TABLE `customers` ADD COLUMN `payment_terms` VARCHAR(100) AFTER currency',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='customers' AND column_name='incoterms')=0,
+  'ALTER TABLE `customers` ADD COLUMN `incoterms` VARCHAR(50) AFTER payment_terms',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='customers' AND column_name='shipping_terms')=0,
+  'ALTER TABLE `customers` ADD COLUMN `shipping_terms` VARCHAR(200) AFTER incoterms',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='customers' AND column_name='delivery_address')=0,
+  'ALTER TABLE `customers` ADD COLUMN `delivery_address` TEXT AFTER shipping_address',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- RFQS TABLE
@@ -93,9 +167,21 @@ CREATE TABLE IF NOT EXISTS rfqs (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS rfq_number VARCHAR(30) NOT NULL UNIQUE AFTER id;
-ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS conversion_date DATETIME AFTER due_date;
-ALTER TABLE rfqs ADD COLUMN IF NOT EXISTS created_by INT AFTER notes;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='rfqs' AND column_name='rfq_number')=0,
+  'ALTER TABLE `rfqs` ADD COLUMN `rfq_number` VARCHAR(30) NOT NULL UNIQUE AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='rfqs' AND column_name='conversion_date')=0,
+  'ALTER TABLE `rfqs` ADD COLUMN `conversion_date` DATETIME AFTER due_date',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='rfqs' AND column_name='created_by')=0,
+  'ALTER TABLE `rfqs` ADD COLUMN `created_by` INT AFTER notes',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- RFQ ITEMS TABLE
@@ -115,7 +201,11 @@ CREATE TABLE IF NOT EXISTS rfq_items (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE rfq_items ADD COLUMN IF NOT EXISTS sequence INT DEFAULT 0 AFTER notes;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='rfq_items' AND column_name='sequence')=0,
+  'ALTER TABLE `rfq_items` ADD COLUMN `sequence` INT DEFAULT 0 AFTER notes',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- PRODUCTS TABLE
@@ -143,12 +233,38 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 -- Rename product_code to internal_code if exists
-ALTER TABLE products CHANGE COLUMN IF EXISTS product_code internal_code VARCHAR(30) NOT NULL UNIQUE;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS internal_code VARCHAR(30) NOT NULL UNIQUE AFTER id;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS weight FLOAT AFTER material;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS standard VARCHAR(50) AFTER weight;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS standard_number VARCHAR(30) AFTER standard;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS dimensions TEXT AFTER thread;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='products' AND column_name='product_code')=1
+  AND (SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='products' AND column_name='internal_code')=0,
+  'ALTER TABLE `products` CHANGE COLUMN `product_code` `internal_code` VARCHAR(30) NOT NULL UNIQUE',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='products' AND column_name='internal_code')=0,
+  'ALTER TABLE `products` ADD COLUMN `internal_code` VARCHAR(30) NOT NULL UNIQUE AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='products' AND column_name='weight')=0,
+  'ALTER TABLE `products` ADD COLUMN `weight` FLOAT AFTER material',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='products' AND column_name='standard')=0,
+  'ALTER TABLE `products` ADD COLUMN `standard` VARCHAR(50) AFTER weight',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='products' AND column_name='standard_number')=0,
+  'ALTER TABLE `products` ADD COLUMN `standard_number` VARCHAR(30) AFTER standard',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='products' AND column_name='dimensions')=0,
+  'ALTER TABLE `products` ADD COLUMN `dimensions` TEXT AFTER thread',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- MATERIALS TABLE
@@ -169,12 +285,36 @@ CREATE TABLE IF NOT EXISTS materials (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE materials ADD COLUMN IF NOT EXISTS material_code VARCHAR(30) NOT NULL UNIQUE AFTER id;
-ALTER TABLE materials ADD COLUMN IF NOT EXISTS material_name VARCHAR(100) NOT NULL AFTER material_code;
-ALTER TABLE materials ADD COLUMN IF NOT EXISTS density FLOAT NOT NULL AFTER material_name;
-ALTER TABLE materials ADD COLUMN IF NOT EXISTS grade VARCHAR(50) AFTER density;
-ALTER TABLE materials ADD COLUMN IF NOT EXISTS default_supplier VARCHAR(100) AFTER hsn_code;
-ALTER TABLE materials ADD COLUMN IF NOT EXISTS rate_unit VARCHAR(20) DEFAULT 'per_kg' AFTER default_rate;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='materials' AND column_name='material_code')=0,
+  'ALTER TABLE `materials` ADD COLUMN `material_code` VARCHAR(30) NOT NULL UNIQUE AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='materials' AND column_name='material_name')=0,
+  'ALTER TABLE `materials` ADD COLUMN `material_name` VARCHAR(100) NOT NULL AFTER material_code',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='materials' AND column_name='density')=0,
+  'ALTER TABLE `materials` ADD COLUMN `density` FLOAT NOT NULL AFTER material_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='materials' AND column_name='grade')=0,
+  'ALTER TABLE `materials` ADD COLUMN `grade` VARCHAR(50) AFTER density',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='materials' AND column_name='default_supplier')=0,
+  'ALTER TABLE `materials` ADD COLUMN `default_supplier` VARCHAR(100) AFTER hsn_code',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='materials' AND column_name='rate_unit')=0,
+  'ALTER TABLE `materials` ADD COLUMN `rate_unit` VARCHAR(20) DEFAULT ''per_kg'' AFTER default_rate',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- Insert sample materials
 INSERT IGNORE INTO materials (material_code, material_name, density, hsn_code, is_active) VALUES
@@ -204,8 +344,16 @@ CREATE TABLE IF NOT EXISTS material_rates (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE material_rates ADD COLUMN IF NOT EXISTS is_current BOOLEAN DEFAULT TRUE AFTER effective_date;
-ALTER TABLE material_rates ADD COLUMN IF NOT EXISTS created_by INT AFTER is_current;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='material_rates' AND column_name='is_current')=0,
+  'ALTER TABLE `material_rates` ADD COLUMN `is_current` BOOLEAN DEFAULT TRUE AFTER effective_date',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='material_rates' AND column_name='created_by')=0,
+  'ALTER TABLE `material_rates` ADD COLUMN `created_by` INT AFTER is_current',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- MACHINES TABLE
@@ -227,12 +375,36 @@ CREATE TABLE IF NOT EXISTS machines (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE machines ADD COLUMN IF NOT EXISTS machine_code VARCHAR(30) NOT NULL UNIQUE AFTER id;
-ALTER TABLE machines ADD COLUMN IF NOT EXISTS machine_type VARCHAR(50) AFTER machine_name;
-ALTER TABLE machines ADD COLUMN IF NOT EXISTS operator_name VARCHAR(100) AFTER hourly_rate;
-ALTER TABLE machines ADD COLUMN IF NOT EXISTS power_consumption FLOAT AFTER operator_name;
-ALTER TABLE machines ADD COLUMN IF NOT EXISTS efficiency FLOAT DEFAULT 100.0 AFTER power_consumption;
-ALTER TABLE machines ADD COLUMN IF NOT EXISTS default_setup_time FLOAT DEFAULT 0 AFTER department;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='machines' AND column_name='machine_code')=0,
+  'ALTER TABLE `machines` ADD COLUMN `machine_code` VARCHAR(30) NOT NULL UNIQUE AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='machines' AND column_name='machine_type')=0,
+  'ALTER TABLE `machines` ADD COLUMN `machine_type` VARCHAR(50) AFTER machine_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='machines' AND column_name='operator_name')=0,
+  'ALTER TABLE `machines` ADD COLUMN `operator_name` VARCHAR(100) AFTER hourly_rate',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='machines' AND column_name='power_consumption')=0,
+  'ALTER TABLE `machines` ADD COLUMN `power_consumption` FLOAT AFTER operator_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='machines' AND column_name='efficiency')=0,
+  'ALTER TABLE `machines` ADD COLUMN `efficiency` FLOAT DEFAULT 100.0 AFTER power_consumption',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='machines' AND column_name='default_setup_time')=0,
+  'ALTER TABLE `machines` ADD COLUMN `default_setup_time` FLOAT DEFAULT 0 AFTER department',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- Insert sample machines
 INSERT IGNORE INTO machines (machine_code, machine_name, hourly_rate, department, is_active) VALUES
@@ -266,11 +438,31 @@ CREATE TABLE IF NOT EXISTS vendors (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE vendors ADD COLUMN IF NOT EXISTS vendor_code VARCHAR(30) NOT NULL UNIQUE AFTER id;
-ALTER TABLE vendors ADD COLUMN IF NOT EXISTS mobile VARCHAR(30) AFTER phone;
-ALTER TABLE vendors ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India' AFTER address;
-ALTER TABLE vendors ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100) AFTER default_currency;
-ALTER TABLE vendors ADD COLUMN IF NOT EXISTS lead_time INT AFTER payment_terms;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendors' AND column_name='vendor_code')=0,
+  'ALTER TABLE `vendors` ADD COLUMN `vendor_code` VARCHAR(30) NOT NULL UNIQUE AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendors' AND column_name='mobile')=0,
+  'ALTER TABLE `vendors` ADD COLUMN `mobile` VARCHAR(30) AFTER phone',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendors' AND column_name='country')=0,
+  'ALTER TABLE `vendors` ADD COLUMN `country` VARCHAR(100) DEFAULT ''India'' AFTER address',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendors' AND column_name='payment_terms')=0,
+  'ALTER TABLE `vendors` ADD COLUMN `payment_terms` VARCHAR(100) AFTER default_currency',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendors' AND column_name='lead_time')=0,
+  'ALTER TABLE `vendors` ADD COLUMN `lead_time` INT AFTER payment_terms',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- VENDOR RATES TABLE
@@ -290,11 +482,31 @@ CREATE TABLE IF NOT EXISTS vendor_rates (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE vendor_rates ADD COLUMN IF NOT EXISTS service_name VARCHAR(100) NOT NULL AFTER vendor_id;
-ALTER TABLE vendor_rates ADD COLUMN IF NOT EXISTS min_quantity INT DEFAULT 1 AFTER unit;
-ALTER TABLE vendor_rates ADD COLUMN IF NOT EXISTS lead_time_days INT AFTER min_quantity;
-ALTER TABLE vendor_rates ADD COLUMN IF NOT EXISTS is_current BOOLEAN DEFAULT TRUE AFTER effective_date;
-ALTER TABLE vendor_rates ADD COLUMN IF NOT EXISTS created_by INT AFTER notes;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_rates' AND column_name='service_name')=0,
+  'ALTER TABLE `vendor_rates` ADD COLUMN `service_name` VARCHAR(100) NOT NULL AFTER vendor_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_rates' AND column_name='min_quantity')=0,
+  'ALTER TABLE `vendor_rates` ADD COLUMN `min_quantity` INT DEFAULT 1 AFTER unit',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_rates' AND column_name='lead_time_days')=0,
+  'ALTER TABLE `vendor_rates` ADD COLUMN `lead_time_days` INT AFTER min_quantity',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_rates' AND column_name='is_current')=0,
+  'ALTER TABLE `vendor_rates` ADD COLUMN `is_current` BOOLEAN DEFAULT TRUE AFTER effective_date',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_rates' AND column_name='created_by')=0,
+  'ALTER TABLE `vendor_rates` ADD COLUMN `created_by` INT AFTER notes',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- PROCESSES TABLE
@@ -319,15 +531,51 @@ CREATE TABLE IF NOT EXISTS processes (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE processes ADD COLUMN IF NOT EXISTS process_code VARCHAR(30) NOT NULL UNIQUE AFTER id;
-ALTER TABLE processes ADD COLUMN IF NOT EXISTS process_type VARCHAR(20) DEFAULT 'internal' AFTER process_name;
-ALTER TABLE processes ADD COLUMN IF NOT EXISTS department VARCHAR(50) AFTER vendor_id;
-ALTER TABLE processes ADD COLUMN IF NOT EXISTS setup_time FLOAT DEFAULT 0 AFTER department;
-ALTER TABLE processes ADD COLUMN IF NOT EXISTS cycle_time FLOAT DEFAULT 0 AFTER setup_time;
-ALTER TABLE processes ADD COLUMN IF NOT EXISTS cost_type VARCHAR(30) DEFAULT 'cycle_time' AFTER cycle_time;
-ALTER TABLE processes ADD COLUMN IF NOT EXISTS cost_value FLOAT DEFAULT 0 AFTER cost_type;
-ALTER TABLE processes ADD COLUMN IF NOT EXISTS cost_formula VARCHAR(200) AFTER cost_value;
-ALTER TABLE processes ADD COLUMN IF NOT EXISTS is_custom BOOLEAN DEFAULT FALSE AFTER is_active;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='processes' AND column_name='process_code')=0,
+  'ALTER TABLE `processes` ADD COLUMN `process_code` VARCHAR(30) NOT NULL UNIQUE AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='processes' AND column_name='process_type')=0,
+  'ALTER TABLE `processes` ADD COLUMN `process_type` VARCHAR(20) DEFAULT ''internal'' AFTER process_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='processes' AND column_name='department')=0,
+  'ALTER TABLE `processes` ADD COLUMN `department` VARCHAR(50) AFTER vendor_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='processes' AND column_name='setup_time')=0,
+  'ALTER TABLE `processes` ADD COLUMN `setup_time` FLOAT DEFAULT 0 AFTER department',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='processes' AND column_name='cycle_time')=0,
+  'ALTER TABLE `processes` ADD COLUMN `cycle_time` FLOAT DEFAULT 0 AFTER setup_time',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='processes' AND column_name='cost_type')=0,
+  'ALTER TABLE `processes` ADD COLUMN `cost_type` VARCHAR(30) DEFAULT ''cycle_time'' AFTER cycle_time',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='processes' AND column_name='cost_value')=0,
+  'ALTER TABLE `processes` ADD COLUMN `cost_value` FLOAT DEFAULT 0 AFTER cost_type',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='processes' AND column_name='cost_formula')=0,
+  'ALTER TABLE `processes` ADD COLUMN `cost_formula` VARCHAR(200) AFTER cost_value',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='processes' AND column_name='is_custom')=0,
+  'ALTER TABLE `processes` ADD COLUMN `is_custom` BOOLEAN DEFAULT FALSE AFTER is_active',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- Insert sample processes
 INSERT IGNORE INTO processes (process_code, process_name, process_type, department, cost_type, is_active) VALUES
@@ -356,7 +604,11 @@ CREATE TABLE IF NOT EXISTS process_templates (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE process_templates ADD COLUMN IF NOT EXISTS template_code VARCHAR(30) NOT NULL UNIQUE AFTER id;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='process_templates' AND column_name='template_code')=0,
+  'ALTER TABLE `process_templates` ADD COLUMN `template_code` VARCHAR(30) NOT NULL UNIQUE AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- PROCESS TEMPLATE STEPS TABLE
@@ -371,7 +623,11 @@ CREATE TABLE IF NOT EXISTS process_template_steps (
 
 -- Repair legacy installs created from an older definition that had
 -- step_number but no sequence. The model requires sequence (NOT NULL).
-ALTER TABLE process_template_steps ADD COLUMN IF NOT EXISTS sequence INT NOT NULL DEFAULT 1;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='process_template_steps' AND column_name='sequence')=0,
+  'ALTER TABLE `process_template_steps` ADD COLUMN `sequence` INT NOT NULL DEFAULT 1',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- ALLOWANCES TABLE
@@ -385,10 +641,26 @@ CREATE TABLE IF NOT EXISTS allowances (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE allowances ADD COLUMN IF NOT EXISTS allowance_type VARCHAR(20) DEFAULT 'machining' AFTER allowance_name;
-ALTER TABLE allowances ADD COLUMN IF NOT EXISTS default_value DECIMAL(10,2) AFTER allowance_type;
-ALTER TABLE allowances ADD COLUMN IF NOT EXISTS allowance_code VARCHAR(30) AFTER id;
-ALTER TABLE allowances ADD COLUMN IF NOT EXISTS value FLOAT DEFAULT 0 AFTER allowance_type;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='allowances' AND column_name='allowance_type')=0,
+  'ALTER TABLE `allowances` ADD COLUMN `allowance_type` VARCHAR(20) DEFAULT ''machining'' AFTER allowance_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='allowances' AND column_name='default_value')=0,
+  'ALTER TABLE `allowances` ADD COLUMN `default_value` DECIMAL(10,2) AFTER allowance_type',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='allowances' AND column_name='allowance_code')=0,
+  'ALTER TABLE `allowances` ADD COLUMN `allowance_code` VARCHAR(30) AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='allowances' AND column_name='value')=0,
+  'ALTER TABLE `allowances` ADD COLUMN `value` FLOAT DEFAULT 0 AFTER allowance_type',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- Insert default allowances
 INSERT IGNORE INTO allowances (allowance_name, allowance_type, default_value, is_active) VALUES
@@ -434,16 +706,56 @@ CREATE TABLE IF NOT EXISTS quotations (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE quotations ADD COLUMN IF NOT EXISTS quotation_ref VARCHAR(30) AFTER quotation_number;
-ALTER TABLE quotations ADD COLUMN IF NOT EXISTS quotation_version VARCHAR(10) DEFAULT 'V1' AFTER quotation_ref;
-ALTER TABLE quotations ADD COLUMN IF NOT EXISTS exchange_rate DECIMAL(12,4) DEFAULT 1 AFTER currency;
-ALTER TABLE quotations ADD COLUMN IF NOT EXISTS subtotal DECIMAL(14,4) DEFAULT 0 AFTER exchange_rate;
-ALTER TABLE quotations ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(14,4) DEFAULT 0 AFTER subtotal;
-ALTER TABLE quotations ADD COLUMN IF NOT EXISTS margin_percent DECIMAL(6,2) DEFAULT 20 AFTER total_amount;
-ALTER TABLE quotations ADD COLUMN IF NOT EXISTS delivery_terms TEXT AFTER payment_terms;
-ALTER TABLE quotations ADD COLUMN IF NOT EXISTS internal_notes TEXT AFTER warranty;
-ALTER TABLE quotations ADD COLUMN IF NOT EXISTS created_by INT AFTER terms_conditions;
-ALTER TABLE quotations ADD COLUMN IF NOT EXISTS lost_reason TEXT AFTER lost_date;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotations' AND column_name='quotation_ref')=0,
+  'ALTER TABLE `quotations` ADD COLUMN `quotation_ref` VARCHAR(30) AFTER quotation_number',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotations' AND column_name='quotation_version')=0,
+  'ALTER TABLE `quotations` ADD COLUMN `quotation_version` VARCHAR(10) DEFAULT ''V1'' AFTER quotation_ref',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotations' AND column_name='exchange_rate')=0,
+  'ALTER TABLE `quotations` ADD COLUMN `exchange_rate` DECIMAL(12,4) DEFAULT 1 AFTER currency',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotations' AND column_name='subtotal')=0,
+  'ALTER TABLE `quotations` ADD COLUMN `subtotal` DECIMAL(14,4) DEFAULT 0 AFTER exchange_rate',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotations' AND column_name='tax_amount')=0,
+  'ALTER TABLE `quotations` ADD COLUMN `tax_amount` DECIMAL(14,4) DEFAULT 0 AFTER subtotal',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotations' AND column_name='margin_percent')=0,
+  'ALTER TABLE `quotations` ADD COLUMN `margin_percent` DECIMAL(6,2) DEFAULT 20 AFTER total_amount',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotations' AND column_name='delivery_terms')=0,
+  'ALTER TABLE `quotations` ADD COLUMN `delivery_terms` TEXT AFTER payment_terms',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotations' AND column_name='internal_notes')=0,
+  'ALTER TABLE `quotations` ADD COLUMN `internal_notes` TEXT AFTER warranty',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotations' AND column_name='created_by')=0,
+  'ALTER TABLE `quotations` ADD COLUMN `created_by` INT AFTER terms_conditions',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotations' AND column_name='lost_reason')=0,
+  'ALTER TABLE `quotations` ADD COLUMN `lost_reason` TEXT AFTER lost_date',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- QUOTATION ITEMS TABLE
@@ -482,19 +794,71 @@ CREATE TABLE IF NOT EXISTS quotation_items (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS item_number INT AFTER product_id;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS tooling_cost DECIMAL(12,4) DEFAULT 0 AFTER quantity_5;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS tooling_amortization_qty INT DEFAULT 0 AFTER tooling_cost;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS material_cost DECIMAL(12,4) DEFAULT 0 AFTER tooling_amortization_qty;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS machining_cost DECIMAL(12,4) DEFAULT 0 AFTER material_cost;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS vendor_cost DECIMAL(12,4) DEFAULT 0 AFTER machining_cost;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS other_cost DECIMAL(12,4) DEFAULT 0 AFTER vendor_cost;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS overhead_amount DECIMAL(12,4) DEFAULT 0 AFTER other_cost;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS profit_amount DECIMAL(12,4) DEFAULT 0 AFTER overhead_amount;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS total_cost DECIMAL(12,4) DEFAULT 0 AFTER profit_amount;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS margin_percent DECIMAL(6,2) DEFAULT 20 AFTER total_cost;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS sequence INT DEFAULT 0 AFTER margin_percent;
-ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS notes TEXT AFTER sequence;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='item_number')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `item_number` INT AFTER product_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='tooling_cost')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `tooling_cost` DECIMAL(12,4) DEFAULT 0 AFTER quantity_5',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='tooling_amortization_qty')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `tooling_amortization_qty` INT DEFAULT 0 AFTER tooling_cost',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='material_cost')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `material_cost` DECIMAL(12,4) DEFAULT 0 AFTER tooling_amortization_qty',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='machining_cost')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `machining_cost` DECIMAL(12,4) DEFAULT 0 AFTER material_cost',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='vendor_cost')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `vendor_cost` DECIMAL(12,4) DEFAULT 0 AFTER machining_cost',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='other_cost')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `other_cost` DECIMAL(12,4) DEFAULT 0 AFTER vendor_cost',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='overhead_amount')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `overhead_amount` DECIMAL(12,4) DEFAULT 0 AFTER other_cost',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='profit_amount')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `profit_amount` DECIMAL(12,4) DEFAULT 0 AFTER overhead_amount',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='total_cost')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `total_cost` DECIMAL(12,4) DEFAULT 0 AFTER profit_amount',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='margin_percent')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `margin_percent` DECIMAL(6,2) DEFAULT 20 AFTER total_cost',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='sequence')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `sequence` INT DEFAULT 0 AFTER margin_percent',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_items' AND column_name='notes')=0,
+  'ALTER TABLE `quotation_items` ADD COLUMN `notes` TEXT AFTER sequence',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- QUOTATION OPERATIONS TABLE
@@ -519,12 +883,36 @@ CREATE TABLE IF NOT EXISTS quotation_operations (
     notes TEXT
 );
 
-ALTER TABLE quotation_operations ADD COLUMN IF NOT EXISTS quotation_item_id INT AFTER quotation_id;
-ALTER TABLE quotation_operations ADD COLUMN IF NOT EXISTS process_id INT AFTER quotation_item_id;
-ALTER TABLE quotation_operations ADD COLUMN IF NOT EXISTS operation_type VARCHAR(20) AFTER operation_name;
-ALTER TABLE quotation_operations ADD COLUMN IF NOT EXISTS calculated_cost FLOAT DEFAULT 0 AFTER cost_value;
-ALTER TABLE quotation_operations ADD COLUMN IF NOT EXISTS quantity_for_calculation INT DEFAULT 1 AFTER calculated_cost;
-ALTER TABLE quotation_operations ADD COLUMN IF NOT EXISTS notes TEXT;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_operations' AND column_name='quotation_item_id')=0,
+  'ALTER TABLE `quotation_operations` ADD COLUMN `quotation_item_id` INT AFTER quotation_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_operations' AND column_name='process_id')=0,
+  'ALTER TABLE `quotation_operations` ADD COLUMN `process_id` INT AFTER quotation_item_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_operations' AND column_name='operation_type')=0,
+  'ALTER TABLE `quotation_operations` ADD COLUMN `operation_type` VARCHAR(20) AFTER operation_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_operations' AND column_name='calculated_cost')=0,
+  'ALTER TABLE `quotation_operations` ADD COLUMN `calculated_cost` FLOAT DEFAULT 0 AFTER cost_value',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_operations' AND column_name='quantity_for_calculation')=0,
+  'ALTER TABLE `quotation_operations` ADD COLUMN `quantity_for_calculation` INT DEFAULT 1 AFTER calculated_cost',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='quotation_operations' AND column_name='notes')=0,
+  'ALTER TABLE `quotation_operations` ADD COLUMN `notes` TEXT',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- ATTACHMENTS TABLE
@@ -543,13 +931,41 @@ CREATE TABLE IF NOT EXISTS attachments (
     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS entity_type VARCHAR(30) NOT NULL AFTER id;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS original_name VARCHAR(255) AFTER file_name;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS file_type VARCHAR(50) AFTER original_name;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS file_path VARCHAR(500) NOT NULL AFTER file_size;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS is_primary BOOLEAN DEFAULT FALSE AFTER file_path;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_by INT AFTER is_primary;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER uploaded_by;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='entity_type')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `entity_type` VARCHAR(30) NOT NULL AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='original_name')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `original_name` VARCHAR(255) AFTER file_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='file_type')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `file_type` VARCHAR(50) AFTER original_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='file_path')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `file_path` VARCHAR(500) NOT NULL AFTER file_size',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='is_primary')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `is_primary` BOOLEAN DEFAULT FALSE AFTER file_path',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='uploaded_by')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `uploaded_by` INT AFTER is_primary',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='uploaded_at')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `uploaded_at` DATETIME DEFAULT CURRENT_TIMESTAMP AFTER uploaded_by',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- REVISION HISTORY TABLE
@@ -565,8 +981,16 @@ CREATE TABLE IF NOT EXISTS revision_history (
     changed_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE revision_history ADD COLUMN IF NOT EXISTS field_name VARCHAR(100) AFTER entity_id;
-ALTER TABLE revision_history ADD COLUMN IF NOT EXISTS changed_by INT AFTER new_value;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='revision_history' AND column_name='field_name')=0,
+  'ALTER TABLE `revision_history` ADD COLUMN `field_name` VARCHAR(100) AFTER entity_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='revision_history' AND column_name='changed_by')=0,
+  'ALTER TABLE `revision_history` ADD COLUMN `changed_by` INT AFTER new_value',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- CURRENCIES TABLE
@@ -581,8 +1005,16 @@ CREATE TABLE IF NOT EXISTS currencies (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE currencies ADD COLUMN IF NOT EXISTS symbol VARCHAR(10) AFTER exchange_rate;
-ALTER TABLE currencies ADD COLUMN IF NOT EXISTS is_base BOOLEAN DEFAULT FALSE AFTER symbol;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='currencies' AND column_name='symbol')=0,
+  'ALTER TABLE `currencies` ADD COLUMN `symbol` VARCHAR(10) AFTER exchange_rate',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='currencies' AND column_name='is_base')=0,
+  'ALTER TABLE `currencies` ADD COLUMN `is_base` BOOLEAN DEFAULT FALSE AFTER symbol',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- Insert sample currencies
 INSERT IGNORE INTO currencies (currency_code, currency_name, exchange_rate, symbol, is_active) VALUES
@@ -625,15 +1057,51 @@ CREATE TABLE IF NOT EXISTS product_cost_history (
 );
 
 -- Add missing columns if they don't exist
-ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS material_id INT AFTER product_id;
-ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS quotation_id INT AFTER material_id;
-ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS vendor_cost DECIMAL(12,4) DEFAULT 0 AFTER machining_cost;
-ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS tooling_cost DECIMAL(12,4) DEFAULT 0 AFTER vendor_cost;
-ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS overhead_cost DECIMAL(12,4) DEFAULT 0 AFTER tooling_cost;
-ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS selling_price DECIMAL(12,4) DEFAULT 0 AFTER total_cost;
-ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS margin_percent DECIMAL(8,2) DEFAULT 0 AFTER selling_price;
-ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS quantity INT DEFAULT 1 AFTER margin_percent;
-ALTER TABLE product_cost_history ADD COLUMN IF NOT EXISTS recorded_by INT AFTER recorded_at;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='product_cost_history' AND column_name='material_id')=0,
+  'ALTER TABLE `product_cost_history` ADD COLUMN `material_id` INT AFTER product_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='product_cost_history' AND column_name='quotation_id')=0,
+  'ALTER TABLE `product_cost_history` ADD COLUMN `quotation_id` INT AFTER material_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='product_cost_history' AND column_name='vendor_cost')=0,
+  'ALTER TABLE `product_cost_history` ADD COLUMN `vendor_cost` DECIMAL(12,4) DEFAULT 0 AFTER machining_cost',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='product_cost_history' AND column_name='tooling_cost')=0,
+  'ALTER TABLE `product_cost_history` ADD COLUMN `tooling_cost` DECIMAL(12,4) DEFAULT 0 AFTER vendor_cost',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='product_cost_history' AND column_name='overhead_cost')=0,
+  'ALTER TABLE `product_cost_history` ADD COLUMN `overhead_cost` DECIMAL(12,4) DEFAULT 0 AFTER tooling_cost',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='product_cost_history' AND column_name='selling_price')=0,
+  'ALTER TABLE `product_cost_history` ADD COLUMN `selling_price` DECIMAL(12,4) DEFAULT 0 AFTER total_cost',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='product_cost_history' AND column_name='margin_percent')=0,
+  'ALTER TABLE `product_cost_history` ADD COLUMN `margin_percent` DECIMAL(8,2) DEFAULT 0 AFTER selling_price',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='product_cost_history' AND column_name='quantity')=0,
+  'ALTER TABLE `product_cost_history` ADD COLUMN `quantity` INT DEFAULT 1 AFTER margin_percent',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='product_cost_history' AND column_name='recorded_by')=0,
+  'ALTER TABLE `product_cost_history` ADD COLUMN `recorded_by` INT AFTER recorded_at',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- RAW MATERIAL CALCULATIONS TABLE
@@ -677,10 +1145,26 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE notifications ADD COLUMN IF NOT EXISTS notification_type VARCHAR(50) AFTER message;
-ALTER TABLE notifications ADD COLUMN IF NOT EXISTS reference_type VARCHAR(30) AFTER notification_type;
-ALTER TABLE notifications ADD COLUMN IF NOT EXISTS reference_id INT AFTER reference_type;
-ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE AFTER reference_id;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='notifications' AND column_name='notification_type')=0,
+  'ALTER TABLE `notifications` ADD COLUMN `notification_type` VARCHAR(50) AFTER message',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='notifications' AND column_name='reference_type')=0,
+  'ALTER TABLE `notifications` ADD COLUMN `reference_type` VARCHAR(30) AFTER notification_type',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='notifications' AND column_name='reference_id')=0,
+  'ALTER TABLE `notifications` ADD COLUMN `reference_id` INT AFTER reference_type',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='notifications' AND column_name='is_read')=0,
+  'ALTER TABLE `notifications` ADD COLUMN `is_read` BOOLEAN DEFAULT FALSE AFTER reference_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- VENDOR WORK ORDERS TABLE
@@ -713,30 +1197,126 @@ CREATE TABLE IF NOT EXISTS vendor_work_orders (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS work_order_number VARCHAR(30) NOT NULL UNIQUE AFTER id;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS vendor_id INT NOT NULL AFTER work_order_number;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS process_id INT AFTER vendor_id;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS product_id INT AFTER process_id;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS quotation_id INT AFTER product_id;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS title VARCHAR(200) AFTER quotation_id;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS part_description VARCHAR(300) AFTER title;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS drawing_number VARCHAR(100) AFTER part_description;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS service_name VARCHAR(100) AFTER drawing_number;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS notes TEXT AFTER service_name;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS quantity_ordered INT DEFAULT 0 AFTER notes;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS quantity_received INT DEFAULT 0 AFTER quantity_ordered;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS quantity_rejected INT DEFAULT 0 AFTER quantity_received;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS unit VARCHAR(20) DEFAULT 'pcs' AFTER quantity_rejected;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS rate DECIMAL(12,4) DEFAULT 0 AFTER unit;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS currency VARCHAR(10) DEFAULT 'INR' AFTER rate;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS order_date DATE AFTER currency;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS due_date DATE AFTER order_date;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS completed_date DATE AFTER due_date;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending' AFTER completed_date;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal' AFTER status;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS created_by INT AFTER priority;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER created_by;
-ALTER TABLE vendor_work_orders ADD COLUMN IF NOT EXISTS updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='work_order_number')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `work_order_number` VARCHAR(30) NOT NULL UNIQUE AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='vendor_id')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `vendor_id` INT NOT NULL AFTER work_order_number',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='process_id')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `process_id` INT AFTER vendor_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='product_id')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `product_id` INT AFTER process_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='quotation_id')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `quotation_id` INT AFTER product_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='title')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `title` VARCHAR(200) AFTER quotation_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='part_description')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `part_description` VARCHAR(300) AFTER title',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='drawing_number')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `drawing_number` VARCHAR(100) AFTER part_description',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='service_name')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `service_name` VARCHAR(100) AFTER drawing_number',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='notes')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `notes` TEXT AFTER service_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='quantity_ordered')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `quantity_ordered` INT DEFAULT 0 AFTER notes',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='quantity_received')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `quantity_received` INT DEFAULT 0 AFTER quantity_ordered',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='quantity_rejected')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `quantity_rejected` INT DEFAULT 0 AFTER quantity_received',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='unit')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `unit` VARCHAR(20) DEFAULT ''pcs'' AFTER quantity_rejected',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='rate')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `rate` DECIMAL(12,4) DEFAULT 0 AFTER unit',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='currency')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `currency` VARCHAR(10) DEFAULT ''INR'' AFTER rate',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='order_date')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `order_date` DATE AFTER currency',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='due_date')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `due_date` DATE AFTER order_date',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='completed_date')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `completed_date` DATE AFTER due_date',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='status')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `status` VARCHAR(20) DEFAULT ''pending'' AFTER completed_date',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='priority')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `priority` VARCHAR(20) DEFAULT ''normal'' AFTER status',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='created_by')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `created_by` INT AFTER priority',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='created_at')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP AFTER created_by',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_work_orders' AND column_name='updated_at')=0,
+  'ALTER TABLE `vendor_work_orders` ADD COLUMN `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- Indexes: see the note at the end of this file (MySQL has no
 -- CREATE INDEX IF NOT EXISTS). The equivalent indexes are defined in schema.sql.
@@ -761,19 +1341,71 @@ CREATE TABLE IF NOT EXISTS vendor_quality_issues (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS vendor_id INT NOT NULL AFTER id;
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS work_order_id INT AFTER vendor_id;
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS issue_date DATE NOT NULL AFTER work_order_id;
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS issue_type VARCHAR(30) DEFAULT 'rejection' AFTER issue_date;
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS severity VARCHAR(20) DEFAULT 'minor' AFTER issue_type;
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS description TEXT AFTER severity;
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS quantity_affected INT DEFAULT 0 AFTER description;
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'open' AFTER quantity_affected;
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS resolution TEXT AFTER status;
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS resolved_date DATE AFTER resolution;
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS reported_by INT AFTER resolved_date;
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER reported_by;
-ALTER TABLE vendor_quality_issues ADD COLUMN IF NOT EXISTS updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='vendor_id')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `vendor_id` INT NOT NULL AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='work_order_id')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `work_order_id` INT AFTER vendor_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='issue_date')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `issue_date` DATE NOT NULL AFTER work_order_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='issue_type')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `issue_type` VARCHAR(30) DEFAULT ''rejection'' AFTER issue_date',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='severity')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `severity` VARCHAR(20) DEFAULT ''minor'' AFTER issue_type',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='description')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `description` TEXT AFTER severity',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='quantity_affected')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `quantity_affected` INT DEFAULT 0 AFTER description',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='status')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `status` VARCHAR(20) DEFAULT ''open'' AFTER quantity_affected',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='resolution')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `resolution` TEXT AFTER status',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='resolved_date')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `resolved_date` DATE AFTER resolution',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='reported_by')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `reported_by` INT AFTER resolved_date',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='created_at')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP AFTER reported_by',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='vendor_quality_issues' AND column_name='updated_at')=0,
+  'ALTER TABLE `vendor_quality_issues` ADD COLUMN `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- SUPPLIER / MASTER DATA TABLES (additive)
@@ -789,13 +1421,41 @@ CREATE TABLE IF NOT EXISTS supplier_types (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS type_code VARCHAR(30) NOT NULL AFTER id;
-ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS type_name VARCHAR(100) NOT NULL AFTER type_code;
-ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS description TEXT AFTER type_name;
-ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0 AFTER description;
-ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE AFTER sort_order;
-ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER is_active;
-ALTER TABLE supplier_types ADD COLUMN IF NOT EXISTS updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_types' AND column_name='type_code')=0,
+  'ALTER TABLE `supplier_types` ADD COLUMN `type_code` VARCHAR(30) NOT NULL AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_types' AND column_name='type_name')=0,
+  'ALTER TABLE `supplier_types` ADD COLUMN `type_name` VARCHAR(100) NOT NULL AFTER type_code',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_types' AND column_name='description')=0,
+  'ALTER TABLE `supplier_types` ADD COLUMN `description` TEXT AFTER type_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_types' AND column_name='sort_order')=0,
+  'ALTER TABLE `supplier_types` ADD COLUMN `sort_order` INT DEFAULT 0 AFTER description',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_types' AND column_name='is_active')=0,
+  'ALTER TABLE `supplier_types` ADD COLUMN `is_active` BOOLEAN DEFAULT TRUE AFTER sort_order',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_types' AND column_name='created_at')=0,
+  'ALTER TABLE `supplier_types` ADD COLUMN `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP AFTER is_active',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_types' AND column_name='updated_at')=0,
+  'ALTER TABLE `supplier_types` ADD COLUMN `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 CREATE TABLE IF NOT EXISTS suppliers (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -827,32 +1487,136 @@ CREATE TABLE IF NOT EXISTS suppliers (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS supplier_code VARCHAR(30) NOT NULL AFTER id;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS company_name VARCHAR(200) NOT NULL AFTER supplier_code;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS supplier_type_id INT AFTER company_name;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS contact_person VARCHAR(120) AFTER supplier_type_id;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS email VARCHAR(120) AFTER contact_person;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS phone VARCHAR(30) AFTER email;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS mobile VARCHAR(30) AFTER phone;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS website VARCHAR(200) AFTER mobile;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS address_line1 VARCHAR(200) AFTER website;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS address_line2 VARCHAR(200) AFTER address_line1;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS city VARCHAR(100) AFTER address_line2;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS state VARCHAR(100) AFTER city;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20) AFTER state;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India' AFTER postal_code;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS gst_vat VARCHAR(30) AFTER country;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS pan VARCHAR(30) AFTER gst_vat;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS cin VARCHAR(30) AFTER pan;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS tax_id VARCHAR(50) AFTER cin;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS default_currency VARCHAR(10) DEFAULT 'INR' AFTER tax_id;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100) AFTER default_currency;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS lead_time INT AFTER payment_terms;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS document_references TEXT AFTER lead_time;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS notes TEXT AFTER document_references;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE AFTER notes;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER is_active;
-ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='supplier_code')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `supplier_code` VARCHAR(30) NOT NULL AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='company_name')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `company_name` VARCHAR(200) NOT NULL AFTER supplier_code',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='supplier_type_id')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `supplier_type_id` INT AFTER company_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='contact_person')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `contact_person` VARCHAR(120) AFTER supplier_type_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='email')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `email` VARCHAR(120) AFTER contact_person',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='phone')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `phone` VARCHAR(30) AFTER email',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='mobile')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `mobile` VARCHAR(30) AFTER phone',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='website')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `website` VARCHAR(200) AFTER mobile',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='address_line1')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `address_line1` VARCHAR(200) AFTER website',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='address_line2')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `address_line2` VARCHAR(200) AFTER address_line1',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='city')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `city` VARCHAR(100) AFTER address_line2',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='state')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `state` VARCHAR(100) AFTER city',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='postal_code')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `postal_code` VARCHAR(20) AFTER state',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='country')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `country` VARCHAR(100) DEFAULT ''India'' AFTER postal_code',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='gst_vat')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `gst_vat` VARCHAR(30) AFTER country',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='pan')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `pan` VARCHAR(30) AFTER gst_vat',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='cin')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `cin` VARCHAR(30) AFTER pan',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='tax_id')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `tax_id` VARCHAR(50) AFTER cin',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='default_currency')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `default_currency` VARCHAR(10) DEFAULT ''INR'' AFTER tax_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='payment_terms')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `payment_terms` VARCHAR(100) AFTER default_currency',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='lead_time')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `lead_time` INT AFTER payment_terms',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='document_references')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `document_references` TEXT AFTER lead_time',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='notes')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `notes` TEXT AFTER document_references',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='is_active')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `is_active` BOOLEAN DEFAULT TRUE AFTER notes',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='created_at')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP AFTER is_active',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='suppliers' AND column_name='updated_at')=0,
+  'ALTER TABLE `suppliers` ADD COLUMN `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 CREATE TABLE IF NOT EXISTS supplier_materials (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -867,18 +1631,58 @@ CREATE TABLE IF NOT EXISTS supplier_materials (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS supplier_id INT NOT NULL AFTER id;
-ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS material_id INT AFTER supplier_id;
-ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS grade VARCHAR(50) AFTER material_id;
-ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS rate FLOAT AFTER grade;
-ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS rate_unit VARCHAR(20) DEFAULT '₹/kg' AFTER rate;
-ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS lead_time INT AFTER rate_unit;
-ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS notes TEXT AFTER lead_time;
-ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS is_preferred BOOLEAN DEFAULT FALSE AFTER notes;
-ALTER TABLE supplier_materials ADD COLUMN IF NOT EXISTS created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER is_preferred;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_materials' AND column_name='supplier_id')=0,
+  'ALTER TABLE `supplier_materials` ADD COLUMN `supplier_id` INT NOT NULL AFTER id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_materials' AND column_name='material_id')=0,
+  'ALTER TABLE `supplier_materials` ADD COLUMN `material_id` INT AFTER supplier_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_materials' AND column_name='grade')=0,
+  'ALTER TABLE `supplier_materials` ADD COLUMN `grade` VARCHAR(50) AFTER material_id',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_materials' AND column_name='rate')=0,
+  'ALTER TABLE `supplier_materials` ADD COLUMN `rate` FLOAT AFTER grade',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_materials' AND column_name='rate_unit')=0,
+  'ALTER TABLE `supplier_materials` ADD COLUMN `rate_unit` VARCHAR(20) DEFAULT ''₹/kg'' AFTER rate',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_materials' AND column_name='lead_time')=0,
+  'ALTER TABLE `supplier_materials` ADD COLUMN `lead_time` INT AFTER rate_unit',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_materials' AND column_name='notes')=0,
+  'ALTER TABLE `supplier_materials` ADD COLUMN `notes` TEXT AFTER lead_time',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_materials' AND column_name='is_preferred')=0,
+  'ALTER TABLE `supplier_materials` ADD COLUMN `is_preferred` BOOLEAN DEFAULT FALSE AFTER notes',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='supplier_materials' AND column_name='created_at')=0,
+  'ALTER TABLE `supplier_materials` ADD COLUMN `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP AFTER is_preferred',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- Link materials to the supplier master (optional, additive; existing text kept)
-ALTER TABLE materials ADD COLUMN IF NOT EXISTS supplier_id INT AFTER default_supplier;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='materials' AND column_name='supplier_id')=0,
+  'ALTER TABLE `materials` ADD COLUMN `supplier_id` INT AFTER default_supplier',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 
 -- =============================================
@@ -1451,16 +2255,56 @@ SELECT 'Migration completed successfully!' AS status;
 -- The attachments table already stored files against an entity; these columns
 -- add document control (category, revision, current/superseded) and richer
 -- metadata. Superseded revisions are kept so history is preserved.
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS title VARCHAR(200) AFTER original_name;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS file_type VARCHAR(50) AFTER file_name;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS is_primary BOOLEAN DEFAULT FALSE AFTER file_size;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS category VARCHAR(40) DEFAULT 'other' AFTER file_size;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS revision VARCHAR(20) AFTER category;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS issue_date DATE AFTER revision;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS notes TEXT AFTER issue_date;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS is_current BOOLEAN DEFAULT TRUE AFTER notes;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS supersedes_id INT AFTER is_current;
-ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER uploaded_by;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='title')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `title` VARCHAR(200) AFTER original_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='file_type')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `file_type` VARCHAR(50) AFTER file_name',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='is_primary')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `is_primary` BOOLEAN DEFAULT FALSE AFTER file_size',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='category')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `category` VARCHAR(40) DEFAULT ''other'' AFTER file_size',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='revision')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `revision` VARCHAR(20) AFTER category',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='issue_date')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `issue_date` DATE AFTER revision',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='notes')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `notes` TEXT AFTER issue_date',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='is_current')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `is_current` BOOLEAN DEFAULT TRUE AFTER notes',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='supersedes_id')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `supersedes_id` INT AFTER is_current',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
+SET @npl_sql := IF((SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema=DATABASE() AND table_name='attachments' AND column_name='uploaded_at')=0,
+  'ALTER TABLE `attachments` ADD COLUMN `uploaded_at` DATETIME DEFAULT CURRENT_TIMESTAMP AFTER uploaded_by',
+  'DO 0');
+PREPARE npl_stmt FROM @npl_sql; EXECUTE npl_stmt; DEALLOCATE PREPARE npl_stmt;
 
 -- =============================================
 -- DISPATCH: shipments of finished goods to customers

@@ -91,6 +91,40 @@ python upgrade_db.py
 
 This is safe to run repeatedly and never deletes or rewrites existing rows.
 
+### Step 6b: Namecheap (and any host without a Python terminal)
+
+Namecheap shared hosting runs **MySQL 8**, and its Python App terminal is
+sometimes unavailable or times out on long scripts. Two things to know:
+
+**Preferred: run the Python upgrader.** In cPanel go to **Setup Python App**,
+find your application, and click the **Terminal** icon (or use *Advanced →
+Terminal*). Then:
+
+```bash
+cd ~/npl_erp
+source ~/virtualenv/npl_erp/3.11/bin/activate
+python upgrade_db.py
+```
+
+If the terminal is unavailable, run the same command through a cron job
+(**cPanel → Cron Jobs**, "Once Per Minute", then delete the job afterwards):
+
+```
+cd /home/CPANEL_USER/npl_erp && /home/CPANEL_USER/virtualenv/npl_erp/3.11/bin/python upgrade_db.py >> logs/upgrade.log 2>&1
+```
+
+**Fallback: phpMyAdmin.** Open **phpMyAdmin**, select your database, click
+**SQL**, and paste the contents of `migrate.sql`, then **Go**.
+
+`migrate.sql` is written to run on both MySQL 8 and MariaDB. It guards every
+`ALTER TABLE` and `CREATE INDEX` with an `information_schema` check, so it is
+idempotent and safe to run repeatedly. If you paste only part of the file and
+MySQL stops with `ERROR 1064`, run it again from the beginning — already-applied
+statements are skipped.
+
+**Do not** run `seed_data.py` on a live database; it is for fresh installs and
+inserts demo data.
+
 ### Step 7: Restart Application
 
 1. Go to **Setup Python App** in cPanel

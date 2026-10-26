@@ -53,19 +53,30 @@ def _parse_create_tables(path):
 
 
 def _migrate_added_columns(sql):
-    """Map table -> set of columns added by ``ALTER TABLE ... ADD COLUMN IF NOT EXISTS``.
+    """Map table -> set of columns introduced by ``migrate.sql``.
 
     The check must be scoped per table. Searching the whole file lets an
     unrelated table satisfy the requirement: ``ALTER TABLE rfq_items ... ADD
     COLUMN sequence`` once hid the fact that ``process_template_steps.sequence``
     was never added, and ``vendor_work_orders.process_id`` hid the missing
     ``quotation_operations.process_id``.
+
+    Two syntaxes are recognised. MySQL 8 rejects the MariaDB-only
+    ``ADD COLUMN IF NOT EXISTS``, so each statement is wrapped in an
+    information_schema guard that emits a plain ``ADD COLUMN`` inside a quoted
+    string, which is why ``IF NOT EXISTS`` is optional here. The rename form
+    (``CHANGE COLUMN old new``) counts as adding ``new``.
     """
     added = {}
     for m in re.finditer(
-            r'ALTER TABLE\s+`?(\w+)`?\s+ADD COLUMN IF NOT EXISTS\s+`?(\w+)`?',
+            r'ALTER TABLE\s+`?(\w+)`?\s+ADD COLUMN\s+(?:IF NOT EXISTS\s+)?`?(\w+)`?',
             sql, re.I):
         added.setdefault(m.group(1), set()).add(m.group(2))
+    for m in re.finditer(
+            r'ALTER TABLE\s+`?(\w+)`?\s+CHANGE COLUMN\s+'
+            r'(?:IF EXISTS\s+)?`?(\w+)`?\s+`?(\w+)`?',
+            sql, re.I):
+        added.setdefault(m.group(1), set()).add(m.group(3))
     return added
 
 
@@ -111,3 +122,31 @@ def test_sql_files_have_balanced_parentheses():
     for name in ('schema.sql', 'migrate.sql'):
         sql = open(os.path.join(REPO_ROOT, name)).read()
         assert sql.count('(') == sql.count(')'), f'unbalanced parentheses in {name}'
+
+
+def test_migrate_sql_avoids_mariadb_only_syntax():
+    """migrate.sql must parse on MySQL 8, which rejects MariaDB's IF NOT EXISTS.
+
+    MySQL 8 is what shared hosts such as Namecheap run. ``ADD COLUMN IF NOT
+    EXISTS`` and ``CREATE INDEX IF NOT EXISTS`` are MariaDB extensions that make
+    MySQL abort with ERROR 1064 partway through the file, leaving the database
+    half-migrated. Each such statement must instead be wrapped in an
+    information_schema guard.
+    """
+    sql = open(os.path.join(REPO_ROOT, 'migrate.sql')).read()
+    offenders = [
+        line.strip() for line in sql.splitlines()
+        if re.match(r'^\s*(ALTER TABLE|CREATE (UNIQUE )?INDEX)\b.*\bIF (NOT )?EXISTS\b',
+                    line, re.I)
+    ]
+    assert not offenders, (
+        'migrate.sql uses MariaDB-only syntax that fails on MySQL 8: '
+        + '; '.join(offenders[:5]))
+
+
+def test_migrate_sql_guards_are_balanced():
+    """Every information_schema guard needs all three PREPARE/EXECUTE/DEALLOCATE parts."""
+    sql = open(os.path.join(REPO_ROOT, 'migrate.sql')).read()
+    assert sql.count('SET @npl_sql') == sql.count('PREPARE npl_stmt FROM') == \
+        sql.count('EXECUTE npl_stmt') == \
+        sql.count('DEALLOCATE PREPARE npl_stmt'), 'malformed statement guard'
