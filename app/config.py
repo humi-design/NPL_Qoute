@@ -58,6 +58,15 @@ class Config:
     DEFAULT_PROFIT_PERCENT = float(os.environ.get('DEFAULT_PROFIT_PERCENT', 20))
     DEFAULT_SCRAP_PERCENT = float(os.environ.get('DEFAULT_SCRAP_PERCENT', 2))
 
+    # Bring the schema up to date when the application starts.
+    #
+    # Deploying newer code onto a database from an older release otherwise
+    # leaves new tables missing and every page that touches them fails with
+    # "no such table" (HTTP 500). Set AUTO_UPGRADE_DB=false to manage the
+    # schema yourself.
+    AUTO_UPGRADE_DB = os.environ.get('AUTO_UPGRADE_DB', 'true').lower() in (
+        'true', '1', 'yes')
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""

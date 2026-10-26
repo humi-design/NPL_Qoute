@@ -68,3 +68,59 @@ def test_upload_dirs_are_anchored_to_project_root(monkeypatch, tmp_path):
         assert os.path.isabs(path), f'upload dir not absolute: {path}'
         assert path.startswith(project_root + os.sep), \
             f'upload dir not under project root: {path}'
+
+
+def test_boot_upgrades_an_outdated_database(monkeypatch, tmp_path):
+    """Booting on an older database must create the missing tables itself.
+
+    Regression: the upgrade was a manual step, so deploying newer code onto an
+    older database left the new tables absent and every page that touched them
+    failed with "no such table" (HTTP 500) until someone ran upgrade_db.py.
+    """
+    from app.config import ProductionConfig
+
+    monkeypatch.setattr(ProductionConfig, 'SQLALCHEMY_DATABASE_URI',
+                        f'sqlite:///{tmp_path / "old.db"}')
+    monkeypatch.setattr(ProductionConfig, 'AUTO_UPGRADE_DB', False)
+
+    from app.extensions import create_app, db
+    from app.schema_upgrade import upgrade_database
+
+    # Build the database with only a subset of the tables, as an old release
+    # would have left it.
+    old_tables = {'users', 'customers'}
+    app = create_app('production')
+    with app.app_context():
+        db.metadata.create_all(
+            bind=db.engine,
+            tables=[db.metadata.tables[n] for n in old_tables])
+        existing = set(db.inspect(db.engine).get_table_names())
+    assert existing == old_tables
+
+    # Now boot the current code against it: the missing tables must appear.
+    monkeypatch.setattr(ProductionConfig, 'AUTO_UPGRADE_DB', True)
+    fresh = create_app('production')
+    with fresh.app_context():
+        after = set(db.inspect(db.engine).get_table_names())
+    assert 'orders' in after, 'orders was not created on boot'
+    assert after > old_tables
+
+    # And a second pass is a no-op.
+    report = upgrade_database(fresh)
+    assert not report['tables_created']
+    assert not report['columns_added']
+
+
+def test_boot_does_not_touch_schema_when_disabled(monkeypatch, tmp_path):
+    """AUTO_UPGRADE_DB=false must leave the schema alone."""
+    from app.config import ProductionConfig
+
+    monkeypatch.setattr(ProductionConfig, 'SQLALCHEMY_DATABASE_URI',
+                        f'sqlite:///{tmp_path / "untouched.db"}')
+    monkeypatch.setattr(ProductionConfig, 'AUTO_UPGRADE_DB', False)
+
+    from app.extensions import create_app, db
+    app = create_app('production')
+    with app.app_context():
+        tables = set(db.inspect(db.engine).get_table_names())
+    assert tables == set(), f'schema was modified despite opt-out: {tables}'

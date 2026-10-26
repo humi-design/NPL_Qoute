@@ -9,12 +9,21 @@ It is additive and idempotent:
 * missing tables are created;
 * missing columns are added to existing tables.
 
-Nothing is ever dropped, renamed or rewritten, and rows are never modified, so
-existing data is preserved. Running it twice is a no-op.
+Nothing is ever dropped, renamed or rewritten, and existing rows are never
+modified beyond backfilling the constant model defaults into columns this run
+creates. Running it twice is a no-op.
+
+The same upgrader runs automatically when the application starts, so this
+script is normally only needed to upgrade a database without booting the app,
+or to see a report of what changed.
 
 Usage (on cPanel, from the application root, with the virtualenv active):
 
     python upgrade_db.py
+
+Or use the wrapper, which activates the virtualenv for you:
+
+    ./run_upgrade.sh
 
 It reads the same ``DATABASE_URL`` / ``DB_*`` environment variables (or ``.env``)
 as the application.
@@ -22,115 +31,29 @@ as the application.
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, PROJECT_ROOT)
 
-import sqlalchemy as sa
 from dotenv import load_dotenv
 
-load_dotenv()
+# Anchor .env to the project root. load_dotenv() defaults to the current working
+# directory, which under Passenger or a cron job is not necessarily the
+# application root, and the script would then silently fall back to a different
+# database.
+load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
 
-from app.extensions import create_app, db  # noqa: E402
+# Must be set before app.config is imported: the config class reads this at
+# import time, and create_app() would otherwise upgrade the schema first and
+# leave this script with nothing to report.
+os.environ['AUTO_UPGRADE_DB'] = 'false'
 
-
-def _literal(value, column, dialect):
-    """Render a Python constant as a SQL literal for the column's type."""
-    if isinstance(value, bool):
-        return 'TRUE' if value else 'FALSE'
-    if isinstance(value, (int, float)):
-        return str(value)
-    if isinstance(value, str):
-        escaped = value.replace('\\', '\\\\').replace("'", "''")
-        return f"'{escaped}'"
-    return None
-
-
-def _column_ddl(column, dialect):
-    """Render a single ADD COLUMN clause, always nullable.
-
-    New columns are added as nullable on purpose: a NOT NULL column with no
-    default cannot be added to a table that already has rows. Leaving it
-    nullable keeps the operation safe on populated production tables.
-    """
-    ddl = f"{dialect.identifier_preparer.quote(column.name)} " \
-          f"{column.type.compile(dialect=dialect)}"
-    if column.server_default is not None:
-        ddl += f" DEFAULT {column.server_default.arg}"
-    elif column.default is not None and not column.default.is_callable:
-        # A constant model default (e.g. is_current=True) must be written into
-        # the DDL, otherwise existing rows get NULL and disappear from any
-        # query that filters on the column.
-        literal = _literal(column.default.arg, column, dialect)
-        if literal is not None:
-            ddl += f' DEFAULT {literal}'
-    return ddl
-
-
-def upgrade_database(app):
-    """Create missing tables and add missing columns. Returns a report dict."""
-    report = {'tables_created': [], 'columns_added': [], 'values_backfilled': []}
-
-    with app.app_context():
-        inspector = sa.inspect(db.engine)
-        existing_tables = set(inspector.get_table_names())
-        dialect = db.engine.dialect
-
-        # --- 1. Missing tables -------------------------------------------------
-        # create_all() issues CREATE TABLE only for tables it cannot find, so it
-        # is safe to call unconditionally.
-        model_tables = {t.name for t in db.metadata.sorted_tables}
-        report['tables_created'] = sorted(model_tables - existing_tables)
-        if report['tables_created']:
-            db.create_all()
-            existing_tables = set(sa.inspect(db.engine).get_table_names())
-
-        # --- 2. Missing columns on pre-existing tables -------------------------
-        inspector = sa.inspect(db.engine)
-        for table in db.metadata.sorted_tables:
-            if table.name not in existing_tables:
-                continue  # just created in full
-            actual = {c['name'] for c in inspector.get_columns(table.name)}
-            for column in table.columns:
-                if column.name in actual:
-                    continue
-                ddl = _column_ddl(column, dialect)
-                statement = (f'ALTER TABLE '
-                             f'{dialect.identifier_preparer.quote(table.name)} '
-                             f'ADD COLUMN {ddl}')
-                try:
-                    with db.engine.begin() as conn:
-                        conn.execute(sa.text(statement))
-                    report['columns_added'].append(
-                        f'{table.name}.{column.name}')
-                except Exception as exc:  # noqa: BLE001
-                    print(f'  ! could not add {table.name}.{column.name}: {exc}')
-                    continue
-
-                # Backfill existing rows from the constant model default. Only
-                # NULLs in the column just added are touched.
-                if column.default is not None and not column.default.is_callable:
-                    literal = _literal(column.default.arg, column, dialect)
-                    if literal is None:
-                        continue
-                    quoted_table = dialect.identifier_preparer.quote(table.name)
-                    quoted_col = dialect.identifier_preparer.quote(column.name)
-                    try:
-                        with db.engine.begin() as conn:
-                            result = conn.execute(sa.text(
-                                f'UPDATE {quoted_table} SET {quoted_col} = '
-                                f'{literal} WHERE {quoted_col} IS NULL'))
-                        if result.rowcount:
-                            report['values_backfilled'].append(
-                                f'{table.name}.{column.name} '
-                                f'({result.rowcount} row(s))')
-                    except Exception as exc:  # noqa: BLE001
-                        print(f'  ! could not backfill {table.name}.'
-                              f'{column.name}: {exc}')
-
-    return report
+from app.extensions import create_app  # noqa: E402
+from app.schema_upgrade import upgrade_database  # noqa: E402
 
 
 def main():
     app = create_app(os.environ.get('FLASK_ENV', 'production'))
+    app.config['AUTO_UPGRADE_DB'] = False
 
     url = app.config.get('SQLALCHEMY_DATABASE_URI', '')
     safe_url = url

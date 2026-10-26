@@ -71,6 +71,14 @@ Before starting, ensure you have:
 
 ### Step 6: Initialize / Upgrade Database
 
+**The application now upgrades the schema by itself on startup.** Deploying
+newer code onto an older database creates any missing tables and columns
+automatically, so there is no required manual step and the site cannot be left
+broken by a forgotten command. Set `AUTO_UPGRADE_DB=false` to opt out.
+
+The commands below remain useful for a fresh install, or to upgrade a database
+without booting the app and see a report of what changed.
+
 **Fresh database** — load the schema, then the additive migration:
 
 ```bash
@@ -80,8 +88,8 @@ python seed_data.py          # creates tables + demo data
 ```
 
 **Existing database (upgrading an install that is already live)** — run the
-additive upgrader. New code needs tables the old database does not have, and
-without this step pages fail with `no such table` (HTTP 500):
+additive upgrader to see what changed. New code needs tables the old database
+does not have, and without this step pages fail with `no such table` (HTTP 500):
 
 ```bash
 cd ~/npl_erp
