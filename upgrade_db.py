@@ -21,17 +21,26 @@ Usage (on cPanel, from the application root, with the virtualenv active):
 
     python upgrade_db.py
 
+Or use the wrapper, which activates the virtualenv for you:
+
+    ./run_upgrade.sh
+
 It reads the same ``DATABASE_URL`` / ``DB_*`` environment variables (or ``.env``)
 as the application.
 """
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, PROJECT_ROOT)
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Anchor .env to the project root. load_dotenv() defaults to the current working
+# directory, which under Passenger or a cron job is not necessarily the
+# application root, and the script would then silently fall back to a different
+# database.
+load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
 
 # Must be set before app.config is imported: the config class reads this at
 # import time, and create_app() would otherwise upgrade the schema first and
