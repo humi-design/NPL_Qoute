@@ -32,6 +32,18 @@ load_dotenv()
 from app.extensions import create_app, db  # noqa: E402
 
 
+def _literal(value, column, dialect):
+    """Render a Python constant as a SQL literal for the column's type."""
+    if isinstance(value, bool):
+        return 'TRUE' if value else 'FALSE'
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        escaped = value.replace('\\', '\\\\').replace("'", "''")
+        return f"'{escaped}'"
+    return None
+
+
 def _column_ddl(column, dialect):
     """Render a single ADD COLUMN clause, always nullable.
 
@@ -43,12 +55,19 @@ def _column_ddl(column, dialect):
           f"{column.type.compile(dialect=dialect)}"
     if column.server_default is not None:
         ddl += f" DEFAULT {column.server_default.arg}"
+    elif column.default is not None and not column.default.is_callable:
+        # A constant model default (e.g. is_current=True) must be written into
+        # the DDL, otherwise existing rows get NULL and disappear from any
+        # query that filters on the column.
+        literal = _literal(column.default.arg, column, dialect)
+        if literal is not None:
+            ddl += f' DEFAULT {literal}'
     return ddl
 
 
 def upgrade_database(app):
     """Create missing tables and add missing columns. Returns a report dict."""
-    report = {'tables_created': [], 'columns_added': []}
+    report = {'tables_created': [], 'columns_added': [], 'values_backfilled': []}
 
     with app.app_context():
         inspector = sa.inspect(db.engine)
@@ -84,6 +103,28 @@ def upgrade_database(app):
                         f'{table.name}.{column.name}')
                 except Exception as exc:  # noqa: BLE001
                     print(f'  ! could not add {table.name}.{column.name}: {exc}')
+                    continue
+
+                # Backfill existing rows from the constant model default. Only
+                # NULLs in the column just added are touched.
+                if column.default is not None and not column.default.is_callable:
+                    literal = _literal(column.default.arg, column, dialect)
+                    if literal is None:
+                        continue
+                    quoted_table = dialect.identifier_preparer.quote(table.name)
+                    quoted_col = dialect.identifier_preparer.quote(column.name)
+                    try:
+                        with db.engine.begin() as conn:
+                            result = conn.execute(sa.text(
+                                f'UPDATE {quoted_table} SET {quoted_col} = '
+                                f'{literal} WHERE {quoted_col} IS NULL'))
+                        if result.rowcount:
+                            report['values_backfilled'].append(
+                                f'{table.name}.{column.name} '
+                                f'({result.rowcount} row(s))')
+                    except Exception as exc:  # noqa: BLE001
+                        print(f'  ! could not backfill {table.name}.'
+                              f'{column.name}: {exc}')
 
     return report
 
@@ -113,6 +154,12 @@ def main():
             print(f'  + {name}')
     else:
         print('All columns already present.')
+
+    if report['values_backfilled']:
+        print(f'\nBackfilled default values in '
+              f'{len(report["values_backfilled"])} column(s):')
+        for name in report['values_backfilled']:
+            print(f'  ~ {name}')
 
     print('\nDatabase is up to date. No existing data was modified.')
 

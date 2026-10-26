@@ -60,6 +60,36 @@ def test_upgrade_is_idempotent(app):
     assert second['columns_added'] == []
 
 
+def test_upgrade_backfills_constant_defaults(app):
+    """Existing rows must receive a column's constant default, not NULL.
+
+    Regression: an older ``attachments`` table has no ``is_current`` column.
+    The model defaults it to True and the document list filters
+    ``is_current IS TRUE``, so leaving the added column NULL made every
+    pre-existing document silently disappear from the UI.
+    """
+    with app.app_context():
+        db.session.execute(db.text(
+            'CREATE TABLE attachments (id INTEGER PRIMARY KEY, '
+            'entity_type VARCHAR(20), entity_id INTEGER, '
+            'file_name VARCHAR(255), original_name VARCHAR(255), '
+            'file_path VARCHAR(500))'))
+        db.session.execute(db.text(
+            "INSERT INTO attachments (entity_type, entity_id, file_name, "
+            "original_name, file_path) VALUES "
+            "('customer', 1, 'f.pdf', 'doc.pdf', 'uploads/x/f.pdf')"))
+        db.session.commit()
+
+    report = upgrade_database(app)
+
+    assert 'attachments.is_current' in report['columns_added']
+    with app.app_context():
+        from app.models import Attachment
+        assert Attachment.query.count() == 1
+        assert Attachment.query.filter(Attachment.is_current.is_(True)).count() == 1
+        assert Attachment.query.first().category == 'other'
+
+
 def test_upgrade_adds_missing_columns_to_existing_table(app):
     """Columns added to a model after a table exists must be backfilled."""
     with app.app_context():
