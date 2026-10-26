@@ -421,7 +421,7 @@ Configs: `app/config.py` — `development`, `testing`, `production`.
 - Tests: `tests/test_upgrade_db.py` covers table creation, column backfill,
   data preservation and idempotency; `tests/test_app_factory.py` covers the
   boot-time upgrade and the opt-out; `tests/test_run_upgrade_wrapper.py` covers
-  the wrapper. Full suite: **248 passed, 3 skipped**.
+  the wrapper. Full suite: **250 passed, 3 skipped**.
 
 ## cPanel startup robustness
 - `create_app()` creates the `uploads/*` directories on every boot. Two

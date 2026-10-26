@@ -143,3 +143,41 @@ def test_wrapper_anchors_env_to_project_root(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     assert str(db) in result.stdout, result.stdout
     assert db.exists(), 'the .env from the project root was not used'
+
+
+def test_wrapper_is_bash_not_python():
+    """cPanel's Run Script executes the chosen file with Python.
+
+    Selecting run_upgrade.sh there makes Python parse bash and fail with
+    "SyntaxError: invalid syntax" on the first `cd ... || exit 1`. The header
+    must say so, so the next person does not file it as a bug.
+    """
+    first_line = _read().splitlines()[0]
+    assert first_line == '#!/bin/bash', first_line
+    assert 'Run Script' in _read(), \
+        'the header must warn that Run Script needs upgrade_db.py instead'
+
+
+def test_upgrade_db_runs_as_cpanel_run_script(tmp_path):
+    """`python upgrade_db.py` with the app root as CWD is what Run Script does.
+
+    That path must work on its own, with no shell, no activation step and no
+    .sh wrapper involved.
+    """
+    app = tmp_path / 'nirmalprecision.com' / 'RFQ'
+    shutil.copytree(REPO_ROOT, app,
+                    ignore=shutil.ignore_patterns('.git', '.venv', '.env',
+                                                  '__pycache__', '*.pyc'))
+    db = tmp_path / 'runscript.db'
+    (app / '.env').write_text(
+        f'DATABASE_URL=sqlite:///{db}\nSECRET_KEY=runscript\n')
+
+    result = subprocess.run(
+        [sys.executable, 'upgrade_db.py'],
+        capture_output=True, text=True, cwd=str(app),
+        env=_clean_env(tmp_path))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'SyntaxError' not in result.stderr, result.stderr
+    assert 'table' in result.stdout.lower(), result.stdout
+    assert db.exists(), 'the database named by .env was not created'

@@ -102,23 +102,40 @@ This is safe to run repeatedly and never deletes or rewrites existing rows.
 ### Step 6b: Namecheap (and any host without a Python terminal)
 
 Namecheap shared hosting runs **MySQL 8**, and its Python App terminal is
-sometimes unavailable or times out on long scripts. Two things to know:
+sometimes unavailable or times out on long scripts.
 
-**Preferred: run the wrapper.** It finds the application's virtualenv itself, so
-there is no activation step to get wrong, and it works from any directory:
+**Simplest: cPanel's Run Script button.** In **Setup Python App**, find your
+application and use its **Run Script** control, and enter:
 
-```bash
-~/npl_erp/run_upgrade.sh
+```
+upgrade_db.py
 ```
 
-**If you prefer to call Python directly, pass exactly one path.** Two things go
-wrong here often enough to be worth naming:
+> **Select `upgrade_db.py`, not `run_upgrade.sh`.** Run Script executes the file
+> you name **with the application's Python interpreter**. `run_upgrade.sh` is a
+> bash script, so Python cannot parse it and fails immediately with
+> `SyntaxError: invalid syntax` on its first `cd ... || exit 1` line. That is
+> expected, not a fault in the script. Only `upgrade_db.py` is a Python file.
+
+`upgrade_db.py` is self-contained: it finds the application root, reads `.env`
+from there regardless of the working directory, and prints a report of what it
+changed.
+
+**In a real shell** (cPanel *Terminal*, or SSH), either form works:
 
 ```bash
-# CORRECT - interpreter, then the script
+~/npl_erp/run_upgrade.sh              # finds the virtualenv itself; any directory
+```
+
+```bash
+# CORRECT - interpreter, then the script, exactly one path
 /home/CPANEL_USER/virtualenv/npl_erp/3.11/bin/python /home/CPANEL_USER/npl_erp/upgrade_db.py
 ```
 
+Three things go wrong here often enough to be worth naming:
+
+* **Do not select `run_upgrade.sh` in Run Script.** It is bash; Run Script uses
+  Python. See above.
 * **Do not put `source .../activate` and `python upgrade_db.py` on one line.**
   They are two commands. Pasted together, the shell runs
   `python source .../activate` and Python reports
@@ -128,10 +145,11 @@ wrong here often enough to be worth naming:
   not the interpreter itself. Writing
   `.../bin/python .../bin/python upgrade_db.py` makes Python read that shell
   script and fail with `SyntaxError: invalid syntax` on its `[[ $EUID -eq 0 ]]`
-  line. `run_upgrade.sh` avoids both traps.
+  line. `run_upgrade.sh` avoids this one.
 
-If the terminal is unavailable, run the same command through a cron job
-(**cPanel → Cron Jobs**, "Once Per Minute", then delete the job afterwards):
+If the terminal is unavailable and Run Script is not offered, run the same
+command through a cron job (**cPanel → Cron Jobs**, "Once Per Minute", then
+delete the job afterwards):
 
 ```
 cd /home/CPANEL_USER/npl_erp && /home/CPANEL_USER/virtualenv/npl_erp/3.11/bin/python upgrade_db.py >> logs/upgrade.log 2>&1
